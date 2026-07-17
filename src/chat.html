@@ -450,10 +450,18 @@ if (hostname == "") {
 }
 
 function startNameChooser() {
+  // Restore saved name if it exists.
+  let savedName = localStorage.getItem("chat-username");
+  if (savedName) {
+    nameInput.value = savedName;
+    nameInput.select();
+  }
+
   nameForm.addEventListener("submit", event => {
     event.preventDefault();
     username = nameInput.value;
     if (username.length > 0) {
+      localStorage.setItem("chat-username", username);
       nameForm.remove();
       roomname = "helloworld";
       startChat();
