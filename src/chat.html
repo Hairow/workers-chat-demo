@@ -14,159 +14,378 @@
 <!--===================================================================================-->
 <!-- Inline style to avoid an extra round trip before the page can render. -->
 <style type="text/css">
+:root {
+  --bg:            #f5f5f7;
+  --surface:       #ffffff;
+  --border:        #e5e5ea;
+  --text-primary:  #1d1d1f;
+  --text-secondary:#86868b;
+  --accent:        #0071e3;
+  --accent-hover:  #0077ed;
+  --danger:        #ff3b30;
+  --radius:        12px;
+  --shadow-sm:     0 1px 3px rgba(0,0,0,.04);
+  --shadow-md:     0 4px 12px rgba(0,0,0,.08);
+  --shadow-lg:     0 8px 30px rgba(0,0,0,.12);
+  --transition:    0.2s cubic-bezier(.25,.1,.25,1);
+}
+
 * {
   box-sizing: border-box;
 }
+
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
 }
 
+/* ── Chat area ────────────────────────────────────────────── */
 #chatlog {
   position: fixed;
   top: 0;
-  bottom: 32px;
+  bottom: 52px;
   left: 0;
-  right: 200px;
+  right: 220px;
   overflow-y: auto;
-  padding: 8px;
+  padding: 16px 20px;
   overflow-wrap: break-word;
+  scroll-behavior: smooth;
 }
 #chatlog span.username {
-  font-weight: bold;
+  font-weight: 600;
+  color: var(--accent);
 }
+#chatlog p {
+  margin: 0 0 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  line-height: 1.5;
+  font-size: 14px;
+  animation: msgIn 0.25s ease-out;
+}
+#chatlog p:has(span.username) {
+  background: none;
+}
+#chatlog p:not(:has(span.username)) {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-style: italic;
+}
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 #spacer {
-  height: calc(100vh - 32px - 5em);
+  height: calc(100vh - 52px - 5em);
 }
 
-#roster {
-  font-weight: bold;
-  padding: 8px;
-}
-
-p {
-  margin-top: 0;
-  margin-bottom: 8px;
-}
-p:last-of-type {
-  margin: 0;
-}
-
+/* ── Roster (online users) ────────────────────────────────── */
 #roster {
   position: fixed;
   right: 0;
   top: 0;
-  bottom: 32px;
-  width: 200px;
-  border-left: none;
+  bottom: 52px;
+  width: 220px;
+  padding: 16px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+#roster::before {
+  content: "在线用户";
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+#roster p {
+  padding: 5px 8px;
+  border-radius: 6px;
+  margin: 2px 0;
+  animation: msgIn 0.3s ease-out;
+}
+
+p {
+  margin: 0;
 }
 
 ::-webkit-scrollbar {
-  display: none;
+  width: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #c1c1c6;
+  border-radius: 4px;
 }
 
 @media(max-width:600px) {
-  #roster { display: none; }
   #chatlog { right: 0; }
+
+  /* Roster toggle button */
+  #roster-toggle {
+    display: flex;
+    position: fixed;
+    z-index: 4;
+    top: 10px;
+    right: 10px;
+    height: 32px;
+    padding: 0 12px;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background var(--transition);
+  }
+  #roster-toggle:hover { background: var(--bg); }
+  #roster-toggle .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #34c759;
+  }
+
+  /* Backdrop */
+  #roster-backdrop {
+    display: none;
+    position: fixed;
+    z-index: 5;
+    inset: 0;
+    background: rgba(0,0,0,.25);
+  }
+  body.roster-open #roster-backdrop { display: block; }
+
+  /* Roster as slide-in panel */
+  #roster {
+    position: fixed;
+    z-index: 6;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 240px;
+    padding: 56px 16px 16px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    overflow-y: auto;
+    transform: translateX(100%);
+    transition: transform 0.25s cubic-bezier(.4,0,.2,1);
+  }
+  body.roster-open #roster { transform: translateX(0); }
+
+  #roster::after {
+    content: "\u2715";
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 28px; height: 28px;
+    line-height: 28px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background var(--transition);
+  }
+  #roster::after:hover { background: var(--bg); }
 }
 
+@media(min-width:601px) {
+  #roster-toggle,
+  #roster-backdrop { display: none !important; }
+}
+
+/* ── Input bar ────────────────────────────────────────────── */
 #chat-input {
   position: fixed;
-  width: 100%;
-  height: 32px;
   bottom: 0;
   left: 0;
+  right: 0;
+  width: 100%;
+  height: 52px;
+  padding: 8px 16px 8px 42px;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--surface);
   border: none;
-  border-top: none;
-  padding-left: 32px;
+  border-top: 1px solid var(--border);
   outline: none;
+  transition: box-shadow var(--transition), border-color var(--transition);
 }
+#chat-input:focus {
+  box-shadow: 0 -1px 0 var(--accent);
+  border-color: var(--accent);
+}
+#chat-input::placeholder {
+  color: var(--text-secondary);
+}
+
 #chatroom::before {
   z-index: 1;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   content: ">";
   position: fixed;
   bottom: 0;
   left: 0;
-  width: 32px;
-  height: 32px;
-  line-height: 32px;
-  text-align: center;
-  font-weight: bold;
-  color: #888;
-  -webkit-text-stroke-width: 2px;
+  width: 42px;
+  height: 52px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent);
+  pointer-events: none;
 }
 
+/* ── Name chooser ─────────────────────────────────────────── */
 #name-form {
   position: fixed;
   z-index: 3;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: white;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  backdrop-filter: blur(20px);
 }
 
 #name-input {
-  position: fixed;
-  font-size: 200%;
-  top: calc(50% - 1em);
-  left: calc(50% - 8em);
-  width: 16em;
-  height: 2em;
-  margin: 0;
+  width: 260px;
+  height: 52px;
+  padding: 0 16px;
+  font-size: 20px;
+  font-family: inherit;
   text-align: center;
-  border: 1px solid #bbb;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+#name-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(0,113,227,.15);
+}
+#name-input::placeholder {
+  color: var(--text-secondary);
 }
 
 #name-form p {
-  position: fixed;
-  top: calc(50% + 3em);
-  width: 100%;
+  margin-top: 20px;
+  max-width: 360px;
+  padding: 0 16px;
   text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+#name-form p a {
+  color: var(--accent);
+  text-decoration: none;
+}
+#name-form p a:hover {
+  text-decoration: underline;
 }
 
+/* ── Room chooser ─────────────────────────────────────────── */
 #room-form {
   position: fixed;
   z-index: 2;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: white;
-  font-size: 200%;
-  margin-top: calc(50vh - 3em);
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--bg);
   text-align: center;
+}
+#room-form p {
+  font-size: 16px;
+  color: var(--text-primary);
+  margin: 0;
 }
 
 #room-name {
-  font-size: inherit;
-  border: 1px solid #bbb;
-  height: 2em;
-  width: 16em;
-  padding-left: 1em;
+  width: 260px;
+  height: 48px;
+  padding: 0 14px;
+  font-size: 16px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+#room-name:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(0,113,227,.15);
+}
+#room-name::placeholder {
+  color: var(--text-secondary);
 }
 
 #room-form button {
-  font-size: inherit;
-  border: 1px solid #bbb;
-  background-color: #eee;
-  height: 2em;
+  height: 48px;
+  padding: 0 28px;
+  font-size: 16px;
+  font-family: inherit;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition), transform 0.1s ease;
+}
+#room-form button:hover {
+  background: var(--accent-hover);
+}
+#room-form button:active {
+  transform: scale(0.97);
+}
+#room-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-@media(max-width:660px) {
-  #name-input, #room-form { font-size: 150%; }
-  #name-form p { font-size: 75%; }
-}
-@media(max-width:500px) {
-  #name-input, #room-form { font-size: 100%; }
-  #name-form p { font-size: 50%; }
+#room-form > * + * {
+  margin: 0;
 }
 
 #go-public {
-  width: 4em;
+  min-width: 80px;
 }
 #go-private {
-  width: 20em;
+  min-width: 260px;
+}
+
+@media(max-width:500px) {
+  #name-input, #room-name { width: 220px; }
+  #go-private { min-width: 220px; }
 }
 
 </style>
@@ -191,6 +410,8 @@ p:last-of-type {
       <div id="chatlog">
         <div id="spacer"></div>
       </div>
+      <button id="roster-toggle" type="button"><span class="dot"></span><span id="roster-count">0</span></button>
+      <div id="roster-backdrop"></div>
       <div id="roster"></div>
       <input id="chat-input">
     </form>
@@ -212,6 +433,9 @@ let chatroom = document.querySelector("#chatroom");
 let chatlog = document.querySelector("#chatlog");
 let chatInput = document.querySelector("#chat-input");
 let roster = document.querySelector("#roster");
+let rosterToggle = document.querySelector("#roster-toggle");
+let rosterBackdrop = document.querySelector("#roster-backdrop");
+let rosterCount = document.querySelector("#roster-count");
 
 // Is the chatlog scrolled to the bottom?
 let isAtBottom = true;
@@ -354,6 +578,20 @@ function startChat() {
     }
   });
 
+  // Mobile roster toggle ────────────────────────────────────────
+  rosterToggle.addEventListener("click", () => {
+    document.body.classList.toggle("roster-open");
+  });
+  rosterBackdrop.addEventListener("click", () => {
+    document.body.classList.remove("roster-open");
+  });
+  // Also close via the X pseudo-element in roaster
+  roster.addEventListener("click", event => {
+    if (event.target === roster) {
+      document.body.classList.remove("roster-open");
+    }
+  });
+
   // Detect mobile keyboard appearing and disappearing, and adjust the scroll as appropriate.
   if('visualViewport' in window) {
     window.visualViewport.addEventListener('resize', function(event) {
@@ -385,6 +623,7 @@ function join() {
       while (roster.firstChild) {
         roster.removeChild(roster.firstChild);
       }
+      updateRosterCount();
 
       // Don't try to reconnect too rapidly.
       let timeSinceLastJoin = Date.now() - startTime;
@@ -405,6 +644,14 @@ function join() {
     ws.send(JSON.stringify({name: username}));
   });
 
+function updateRosterCount() {
+  // Count actual user <p> elements (exclude the ::before title)
+  let count = roster.querySelectorAll("p").length;
+  rosterCount.textContent = count;
+}
+
+// ...
+
   ws.addEventListener("message", event => {
     let data = JSON.parse(event.data);
 
@@ -414,6 +661,7 @@ function join() {
       let p = document.createElement("p");
       p.innerText = data.joined;
       roster.appendChild(p);
+      updateRosterCount();
     } else if (data.quit) {
       for (let child of roster.childNodes) {
         if (child.innerText == data.quit) {
@@ -421,6 +669,7 @@ function join() {
           break;
         }
       }
+      updateRosterCount();
     } else if (data.ready) {
       // All pre-join messages have been delivered.
       if (!wroteWelcomeMessages) {
