@@ -384,17 +384,17 @@ export class ChatRoom {
 
     // Create our session and add it to the sessions map.
     // 创建 session 并加入 sessions map。
-    let session = { limiterId, limiter, blockedMessages: [] };
-    // attach limiterId to the webSocket so it survives hibernation
-    // 将 limiterId 附加到 webSocket 上，使其在休眠时也能保留
-    webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString() });
+    let session = { limiterId, limiter, blockedMessages: [], ip };
+    // attach limiterId, name, ip to the webSocket so they survive hibernation
+    // 将 limiterId、name、ip 附加到 webSocket，使其在休眠时也能保留
+    webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip });
     this.sessions.set(webSocket, session);
 
     // Queue "join" messages for all online users, to populate the client's roster.
     // 为所有在线用户排队 "join" 消息，以填充客户端的在线名单。
     for (let otherSession of this.sessions.values()) {
       if (otherSession.name) {
-        session.blockedMessages.push(JSON.stringify({ joined: otherSession.name }));
+        session.blockedMessages.push(JSON.stringify({ joined: otherSession.name, ip: otherSession.ip }));
       }
     }
 
@@ -466,7 +466,7 @@ export class ChatRoom {
 
         // Broadcast to all other connections that this user has joined.
         // 向所有其他连接广播该用户已加入。
-        this.broadcast({ joined: session.name });
+        this.broadcast({ joined: session.name, ip: session.ip });
 
         webSocket.send(JSON.stringify({ ready: true }));
         return;

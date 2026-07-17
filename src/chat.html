@@ -724,12 +724,13 @@
         addChatMessage(null, "* Error: " + data.error);
       } else if (data.joined) {
         let p = document.createElement("p");
-        p.innerText = data.joined;
+        p.setAttribute("data-name", data.joined);
+        p.innerText = data.joined + (data.ip ? " (" + data.ip + ")" : "");
         roster.appendChild(p);
         updateRosterCount();
       } else if (data.quit) {
         for (let child of roster.childNodes) {
-          if (child.innerText == data.quit) {
+          if (child.getAttribute && child.getAttribute("data-name") == data.quit) {
             roster.removeChild(child);
             break;
           }
