@@ -502,15 +502,15 @@ export class ChatRoom {
       let key = new Date(data.timestamp).toISOString();
       await this.storage.put(key, dataStr);
 
-      // Keep only the last 100 messages to prevent unbounded storage growth.
+      // Keep only the last 1000 messages to prevent unbounded storage growth.
       // Durable Object storage is limited to 1 GiB per instance.
-      // 只保留最近 100 条消息，防止存储无限增长。每个 Durable Object 实例存储上限为 1 GiB。
+      // 只保留最近 1000 条消息，防止存储无限增长。每个 Durable Object 实例存储上限为 1 GiB。
       let allKeys = [...(await this.storage.list()).keys()];
-      if (allKeys.length > 100) {
+      if (allKeys.length > 1000) {
         // Keys are ISO timestamps, so lexicographic sort = chronological sort.
-        // Delete all but the newest 100.
-        // 键是 ISO 时间戳，字典序排序 = 时间顺序排序。删除除最新 100 条外的所有数据。
-        let keysToDelete = allKeys.sort().slice(0, allKeys.length - 100);
+        // Delete all but the newest 1000.
+        // 键是 ISO 时间戳，字典序排序 = 时间顺序排序。删除除最新 1000 条外的所有数据。
+        let keysToDelete = allKeys.sort().slice(0, allKeys.length - 1000);
         await Promise.all(keysToDelete.map(k => this.storage.delete(k)));
       }
     } catch (err) {
