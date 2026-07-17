@@ -3,5 +3,13 @@
   "description": "An edge chat service that runs on Cloudflare Workers using Durable Objects",
   "version": "1.0.0",
   "module": "./src/chat.mjs",
-  "private": true
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
 }
