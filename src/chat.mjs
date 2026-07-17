@@ -173,28 +173,12 @@ async function handleApiRequest(path, request, env) {
         // The request is for just "/api/room", with no ID.
         // 请求的是 "/api/room"，没有 ID。
         if (request.method == "POST") {
-          // POST to /api/room creates a private room.
-          // POST 到 /api/room 创建一个私有房间。
-          //
-          // Incidentally, this code doesn't actually store anything. It just generates a valid
-          // unique ID for this namespace. Each durable object namespace has its own ID space, but
-          // IDs from one namespace are not valid for any other.
-          // 实际上这段代码并不存储任何东西。它只是为这个命名空间生成一个有效的唯一 ID。
-          // 每个 Durable Object 命名空间拥有独立的 ID 空间，一个命名空间的 ID 对其他命名空间无效。
-          //
-          // The IDs returned by `newUniqueId()` are unguessable, so are a valid way to implement
-          // "anyone with the link can access" sharing. Additionally, IDs generated this way have
-          // a performance benefit over IDs generated from names: When a unique ID is generated,
-          // the system knows it is unique without having to communicate with the rest of the
-          // world -- i.e., there is no way that someone in the UK and someone in New Zealand
-          // could coincidentally create the same ID at the same time, because unique IDs are,
-          // well, unique!
-          // `newUniqueId()` 返回的 ID 是不可猜测的，适合实现"持有链接即可访问"的分享方式。
-          // 此外，这种方式生成的 ID 比从名称派生的 ID 在性能上更优：生成唯一 ID 时，
-          // 系统无需与外界通信就能确定其唯一性——即，不会出现英国和新西兰的两个人
-          // 同时意外创建出相同 ID 的情况，因为唯一 ID 就是唯一的！
-          let id = env.rooms.newUniqueId();
-          return new Response(id.toString(), { headers: { "Access-Control-Allow-Origin": "*" } });
+          // Private rooms are temporarily disabled.
+          // 私密房间已暂时关闭。
+          return new Response("Private rooms are temporarily disabled.", {
+            status: 403,
+            headers: { "Access-Control-Allow-Origin": "*" }
+          });
         } else {
           // If we wanted to support returning a list of public rooms, this might be a place to do
           // it. The list of room names might be a good thing to store in KV, though a singleton
