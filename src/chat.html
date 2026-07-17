@@ -328,8 +328,9 @@ function startChat() {
       currentWebSocket.send(JSON.stringify({message: chatInput.value}));
       chatInput.value = "";
 
-      // Scroll to bottom whenever sending a message.
-      chatlog.scrollBy(0, 1e8);
+      // Force the scroll state to bottom so that when the server echoes the
+      // message back, addChatMessage() will scroll to show it.
+      isAtBottom = true;
     }
   });
 
@@ -340,7 +341,8 @@ function startChat() {
   });
 
   chatlog.addEventListener("scroll", event => {
-    isAtBottom = chatlog.scrollTop + chatlog.clientHeight >= chatlog.scrollHeight;
+    // Allow a 2px tolerance to handle sub-pixel rendering differences.
+    isAtBottom = (chatlog.scrollTop + chatlog.clientHeight + 2) >= chatlog.scrollHeight;
   });
 
   chatInput.focus();
@@ -467,12 +469,15 @@ function addChatMessage(name, text) {
   }
   p.appendChild(document.createTextNode(text));
 
-  // Append the new chat line, making sure that if the chatlog was scrolled to the bottom
-  // before, it remains scrolled to the bottom, and otherwise the scroll position doesn't
-  // change.
   chatlog.appendChild(p);
+
+  // Always scroll to bottom when a new message arrives, using requestAnimationFrame
+  // to ensure the DOM has been painted. Using scrollTop = scrollHeight is more
+  // reliable than scrollBy() for keeping new messages visible.
   if (isAtBottom) {
-    chatlog.scrollBy(0, 1e8);
+    requestAnimationFrame(() => {
+      chatlog.scrollTop = chatlog.scrollHeight;
+    });
   }
 }
 

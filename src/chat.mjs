@@ -395,6 +395,16 @@ export class ChatRoom {
       // Save message.
       let key = new Date(data.timestamp).toISOString();
       await this.storage.put(key, dataStr);
+
+      // Keep only the last 100 messages to prevent unbounded storage growth.
+      // Durable Object storage is limited to 1 GiB per instance.
+      let allKeys = [...(await this.storage.list()).keys()];
+      if (allKeys.length > 100) {
+        // Keys are ISO timestamps, so lexicographic sort = chronological sort.
+        // Delete all but the newest 100.
+        let keysToDelete = allKeys.sort().slice(0, allKeys.length - 100);
+        await Promise.all(keysToDelete.map(k => this.storage.delete(k)));
+      }
     } catch (err) {
       // Report any exceptions directly back to the client. As with our handleErrors() this
       // probably isn't what you'd want to do in production, but it's convenient when testing.
