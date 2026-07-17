@@ -529,7 +529,7 @@ export class ChatRoom {
     session.quit = true;
     this.sessions.delete(webSocket);
     if (session.name) {
-      this.broadcast({ quit: session.name });
+      this.broadcast({ quit: session.name, ip: session.ip });
     }
   }
 
@@ -576,7 +576,7 @@ export class ChatRoom {
 
     quitters.forEach(quitter => {
       if (quitter.name) {
-        this.broadcast({ quit: quitter.name });
+        this.broadcast({ quit: quitter.name, ip: quitter.ip });
       }
     });
   }
