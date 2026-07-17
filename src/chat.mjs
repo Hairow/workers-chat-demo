@@ -263,7 +263,8 @@ async function handleApiRequest(path, request, env) {
       // same signature as the global `fetch()` function, but the request is always sent to the
       // object, regardless of the request's URL.
       // 将请求发送给该对象。Durable Object stub 的 `fetch()` 方法和全局 `fetch()` 函数签名相同，
-      // 但请求总是发送给该对象，与请求的 URL 无关。
+      // 但请求总是发送给该对象，与请求的 URL 无关。 
+      // 真正的聊天室是在fetch第一次被调用时，Cloudflare 才在全球边缘节点上启动一个 ChatRoom 实例
       return roomObject.fetch(newUrl, request);
     }
 
