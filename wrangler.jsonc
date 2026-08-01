@@ -1,7 +1,7 @@
 {
   "name": "edge-chat-demo",
   "compatibility_date": "2024-01-01",
-  "main": "src/chat.mjs",
+  "main": "src/index.mjs",
   "durable_objects": {
     "bindings": [
       {
