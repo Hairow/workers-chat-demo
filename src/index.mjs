@@ -133,9 +133,21 @@ async function handleApiRequest(path, request, env) {
   switch (path[0]) {
     case "rooms": {
       // GET /api/rooms — list all active rooms from KV.
+      // Key format: room:<id> (private) or room:<id>-<name> (public).
+      // 键格式：room:<id>（私密房间）或 room:<id>-<name>（公开房间）。
       let rooms = await env.CHAT_ROOMS.list({ prefix: "room:" });
-      let names = rooms.keys.map(k => k.name.replace("room:", ""));
-      return Response.json(names);
+      let result = rooms.keys.map(k => {
+        let raw = k.name.slice(5);           // strip "room:"
+        let dashIdx = raw.indexOf("-");
+        if (dashIdx === -1) {
+          // Private room: room:<id>
+          return { id: raw, name: raw, private: true };
+        } else {
+          // Public room: room:<id>-<name>
+          return { id: raw.slice(0, dashIdx), name: raw.slice(dashIdx + 1), private: false };
+        }
+      });
+      return Response.json(result);
     }
 
     case "room": {
@@ -146,9 +158,12 @@ async function handleApiRequest(path, request, env) {
         // The request is for just "/api/room", with no ID.
         // 请求的是 "/api/room"，没有 ID。
         if (request.method == "POST") {
-          // Private rooms are temporarily disabled.
-          // 私密房间已暂时关闭。
-          return new Response("Private rooms are temporarily disabled.", { status: 403 });
+          // Create a private room by generating a random, unguessable Durable Object ID.
+          // The 64-char hex string acts as a "secret" room name — only those who know it can join.
+          // 通过生成随机 Durable Object ID 创建私密房间。
+          // 64 位十六进制字符串作为"秘密"房间名 — 只有知道它的人才能加入。
+          let id = env.rooms.newUniqueId();
+          return new Response(id.toString());
         } else {
           // If we wanted to support returning a list of public rooms, this might be a place to do
           // it. The list of room names might be a good thing to store in KV, though a singleton
@@ -221,9 +236,15 @@ async function handleApiRequest(path, request, env) {
       // 真正的聊天室是在fetch第一次被调用时，Cloudflare 才在全球边缘节点上启动一个 ChatRoom 实例
 
       // Store room name in KV when someone joins via WebSocket (i.e. room becomes active).
+      // Key format: room:<id>-<name> for public rooms, room:<id> for private rooms.
       // 当有人通过 WebSocket 加入房间时，将房间名写入 KV（即房间活跃时注册）。
+      // Key 格式：公开房间 room:<id>-<name>，私密房间 room:<id>。
       if (path[2] === "websocket") {
-        env.CHAT_ROOMS.put(`room:${name}`, "1").catch(() => { });
+        let hex = id.toString();
+        let key = name.match(/^[0-9a-f]{64}$/)
+          ? `room:${hex}`           // private: name is the 64-char hex ID
+          : `room:${hex}-${name}`;  // public: store both id and name
+        env.CHAT_ROOMS.put(key, "1").catch(() => { });
       }
 
       return roomObject.fetch(newUrl, request);
