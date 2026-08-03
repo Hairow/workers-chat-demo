@@ -120,7 +120,10 @@ export default {
           return handleApiRequest(path.slice(1), request, env);
 
         default:
-          return new Response("Not found", { status: 404 });
+          return new Response("Not found", {
+            status: 404,
+            headers: { "Access-Control-Allow-Origin": "*" }
+          });
       }
     });
   }
@@ -171,7 +174,10 @@ async function handleApiRequest(path, request, env) {
           // inevitably some trolls would probably register a bunch of offensive room names. Sigh.
           // 不过在这个 Demo 中，我们没有实现公开房间列表，
           // 主要是考虑到总会有无聊的人注册一些冒犯性的房间名。唉。
-          return new Response("Method not allowed", { status: 405 });
+          return new Response("Method not allowed", {
+            status: 405,
+            headers: { "Access-Control-Allow-Origin": "*" }
+          });
         }
       }
 
@@ -197,7 +203,10 @@ async function handleApiRequest(path, request, env) {
         // 作为字符串房间名处理（限制 32 个字符）。`idFromName()` 从字符串一致地派生出 ID。
         id = env.rooms.idFromName(name);
       } else {
-        return new Response("Name too long", { status: 404 });
+        return new Response("Name too long", {
+          status: 404,
+          headers: { "Access-Control-Allow-Origin": "*" }
+        });
       }
 
       // Get the Durable Object stub for this room! The stub is a client object that can be used
@@ -235,6 +244,9 @@ async function handleApiRequest(path, request, env) {
     }
 
     default:
-      return new Response("Not found", { status: 404 });
+      return new Response("Not found", {
+        status: 404,
+        headers: { "Access-Control-Allow-Origin": "*" }
+      });
   }
 }
