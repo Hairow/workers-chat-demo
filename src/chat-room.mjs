@@ -84,14 +84,9 @@ export class ChatRoom {
             this.sessions.clear();
             // Delete all stored messages.
             await this.storage.deleteAll();
-            return new Response("Room deleted", {
-              headers: { "Access-Control-Allow-Origin": "*" }
-            });
+            return new Response("Room deleted");
           }
-          return new Response("Method not allowed", {
-            status: 405,
-            headers: { "Access-Control-Allow-Origin": "*" }
-          });
+          return new Response("Method not allowed", { status: 405 });
         }
 
         case "/websocket": {
@@ -99,10 +94,7 @@ export class ChatRoom {
           // WebSocket session.
           // 请求是 `/api/room/<name>/websocket`。客户端正在尝试建立新的 WebSocket 会话。
           if (request.headers.get("Upgrade") != "websocket") {
-            return new Response("expected websocket", {
-              status: 400,
-              headers: { "Access-Control-Allow-Origin": "*" }
-            });
+            return new Response("expected websocket", { status: 400 });
           }
 
           // Get the client's IP address for use with the rate limiter.
@@ -129,10 +121,7 @@ export class ChatRoom {
         }
 
         default:
-          return new Response("Not found", {
-            status: 404,
-            headers: { "Access-Control-Allow-Origin": "*" }
-          });
+          return new Response("Not found", { status: 404 });
       }
     });
   }

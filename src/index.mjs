@@ -120,10 +120,7 @@ export default {
           return handleApiRequest(path.slice(1), request, env);
 
         default:
-          return new Response("Not found", {
-            status: 404,
-            headers: { "Access-Control-Allow-Origin": "*" }
-          });
+          return new Response("Not found", { status: 404 });
       }
     });
   }
@@ -138,9 +135,7 @@ async function handleApiRequest(path, request, env) {
       // GET /api/rooms — list all active rooms from KV.
       let rooms = await env.CHAT_ROOMS.list({ prefix: "room:" });
       let names = rooms.keys.map(k => k.name.replace("room:", ""));
-      return Response.json(names, {
-        headers: { "Access-Control-Allow-Origin": "*" }
-      });
+      return Response.json(names);
     }
 
     case "room": {
@@ -153,10 +148,7 @@ async function handleApiRequest(path, request, env) {
         if (request.method == "POST") {
           // Private rooms are temporarily disabled.
           // 私密房间已暂时关闭。
-          return new Response("Private rooms are temporarily disabled.", {
-            status: 403,
-            headers: { "Access-Control-Allow-Origin": "*" }
-          });
+          return new Response("Private rooms are temporarily disabled.", { status: 403 });
         } else {
           // If we wanted to support returning a list of public rooms, this might be a place to do
           // it. The list of room names might be a good thing to store in KV, though a singleton
@@ -174,10 +166,7 @@ async function handleApiRequest(path, request, env) {
           // inevitably some trolls would probably register a bunch of offensive room names. Sigh.
           // 不过在这个 Demo 中，我们没有实现公开房间列表，
           // 主要是考虑到总会有无聊的人注册一些冒犯性的房间名。唉。
-          return new Response("Method not allowed", {
-            status: 405,
-            headers: { "Access-Control-Allow-Origin": "*" }
-          });
+          return new Response("Method not allowed", { status: 405 });
         }
       }
 
@@ -203,10 +192,7 @@ async function handleApiRequest(path, request, env) {
         // 作为字符串房间名处理（限制 32 个字符）。`idFromName()` 从字符串一致地派生出 ID。
         id = env.rooms.idFromName(name);
       } else {
-        return new Response("Name too long", {
-          status: 404,
-          headers: { "Access-Control-Allow-Origin": "*" }
-        });
+        return new Response("Name too long", { status: 404 });
       }
 
       // Get the Durable Object stub for this room! The stub is a client object that can be used
@@ -244,9 +230,6 @@ async function handleApiRequest(path, request, env) {
     }
 
     default:
-      return new Response("Not found", {
-        status: 404,
-        headers: { "Access-Control-Allow-Origin": "*" }
-      });
+      return new Response("Not found", { status: 404 });
   }
 }
