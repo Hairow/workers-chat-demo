@@ -2,6 +2,13 @@
   "name": "edge-chat-demo",
   "compatibility_date": "2024-01-01",
   "main": "src/index.mjs",
+  "kv_namespaces": [
+    {
+      "binding": "CHAT_ROOMS",
+      "id": "your-kv-namespace-id",
+      "preview_id": "your-kv-preview-id"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {

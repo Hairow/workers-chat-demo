@@ -131,6 +131,15 @@ async function handleApiRequest(path, request, env) {
   // 收到 API 请求。根据路径路由请求。
 
   switch (path[0]) {
+    case "rooms": {
+      // GET /api/rooms — list all active rooms from KV.
+      let rooms = await env.CHAT_ROOMS.list({ prefix: "room:" });
+      let names = rooms.keys.map(k => k.name.replace("room:", ""));
+      return Response.json(names, {
+        headers: { "Access-Control-Allow-Origin": "*" }
+      });
+    }
+
     case "room": {
       // Request for `/api/room/...`.
       // 请求 `/api/room/...`。
@@ -215,6 +224,13 @@ async function handleApiRequest(path, request, env) {
       // 将请求发送给该对象。Durable Object stub 的 `fetch()` 方法和全局 `fetch()` 函数签名相同，
       // 但请求总是发送给该对象，与请求的 URL 无关。 
       // 真正的聊天室是在fetch第一次被调用时，Cloudflare 才在全球边缘节点上启动一个 ChatRoom 实例
+
+      // Store room name in KV when someone joins via WebSocket (i.e. room becomes active).
+      // 当有人通过 WebSocket 加入房间时，将房间名写入 KV（即房间活跃时注册）。
+      if (path[2] === "websocket") {
+        env.CHAT_ROOMS.put(`room:${name}`, "1").catch(() => { });
+      }
+
       return roomObject.fetch(newUrl, request);
     }
 
