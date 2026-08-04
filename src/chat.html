@@ -678,17 +678,6 @@
       </p>
     </form>
 
-    <!-- ── Room Chooser ─────────────────────────── -->
-    <form v-if="step === 'room'" class="modal-overlay room-body" @submit.prevent="joinPublic">
-      <p>Enter a public room:</p>
-      <input id="room-name" v-model="roomname" placeholder="room name" maxlength="32" ref="roomNameInput" autofocus>
-      <button id="go-public" class="btn" type="submit" :disabled="creatingPrivate">Go &raquo;</button>
-      <p>OR</p>
-      <button id="go-private" class="btn" type="button" @click="createPrivate" :disabled="creatingPrivate">
-        {{ creatingPrivate ? 'Creating...' : 'Create a Private Room &raquo;' }}
-      </button>
-    </form>
-
     <!-- ── Chat Interface ───────────────────────── -->
     <form v-if="step === 'chat'" id="chatroom" action="/fake-form-action" @submit.prevent>
 
@@ -893,17 +882,8 @@
         confirmName: function () {
           if (!this.username.trim()) return;
           localStorage.setItem('chat-username', this.username);
-          if (document.location.hash.length > 1) {
-            this.roomname = document.location.hash.slice(1);
-            this.step = 'chat';
-            this.$nextTick(this.startChat);
-          } else {
-            this.step = 'room';
-            this.$nextTick(function () {
-              var el = this.$refs.roomNameInput;
-              if (el) el.focus();
-            });
-          }
+          this.roomname = 'helloworld';
+          this.$nextTick(this.startChat);
         },
         joinPublic: function () {
           if (!this.roomname.trim()) return;
