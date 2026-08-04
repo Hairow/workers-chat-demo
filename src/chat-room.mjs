@@ -170,16 +170,17 @@ export class ChatRoom {
 
   // Message type schemas defining required and optional fields in the `body`.
   // 消息类型 schema，定义 `body` 中的必填和可选字段。
+  // replyTo is an optional field on every type, allowing any message to reference another.
+  // replyTo 是所有类型的可选字段，允许任意消息引用另一条消息。
   static MESSAGE_SCHEMAS = {
-    text:       { required: ["text"],                                        maxLen: { text: 2048 } },
-    image:      { required: ["url"],      optional: ["caption"],             maxLen: { caption: 512 } },
-    audio:      { required: ["url"],      optional: ["duration"],            maxLen: {} },
-    video:      { required: ["url"],      optional: ["thumbnail","duration"],maxLen: {} },
-    product_card:{required:["title","image","price"],optional:["link"],      maxLen: { title: 128, price: 32 } },
-    reply:      { required: ["text","replyTo"],                             maxLen: { text: 2048 } },
-    code_snippet:{required:["code"],      optional: ["language"],            maxLen: { code: 4096, language: 32 } },
-    location:   { required: ["lat","lng","name"],                           maxLen: { name: 128 } },
-    file:       { required: ["url","filename","size"],                      maxLen: { filename: 256 } },
+    text:       { required: ["text"],                                        optional: ["replyTo"], maxLen: { text: 2048 } },
+    image:      { required: ["url"],      optional: ["caption","replyTo"],    maxLen: { caption: 512 } },
+    audio:      { required: ["url"],      optional: ["duration","replyTo"],   maxLen: {} },
+    video:      { required: ["url"],      optional: ["thumbnail","duration","replyTo"],maxLen: {} },
+    product_card:{required:["title","image","price"],optional:["link","replyTo"],     maxLen: { title: 128, price: 32 } },
+    code_snippet:{required:["code"],      optional: ["language","replyTo"],           maxLen: { code: 4096, language: 32 } },
+    location:   { required: ["lat","lng","name"],                           optional: ["replyTo"], maxLen: { name: 128 } },
+    file:       { required: ["url","filename","size"],                      optional: ["replyTo"], maxLen: { filename: 256 } },
   };
 
   // Validate a message according to its type schema.
@@ -290,9 +291,9 @@ export class ChatRoom {
       }
       body = sanitizedBody;
 
-      // For reply, enforce replyTo fields exist.
-      // 对 reply 类型，确保 replyTo 子字段存在。
-      if (type === "reply" && body.replyTo) {
+      // Sanitize replyTo if present on any message type.
+      // 任何消息类型如果携带 replyTo，清洗其内容。
+      if (body.replyTo) {
         body.replyTo.name = "" + (body.replyTo.name || "unknown");
         body.replyTo.text = "" + (body.replyTo.text || "");
         if (body.replyTo.text.length > 512) {

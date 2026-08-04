@@ -960,12 +960,7 @@
         });
       }
 
-      if (type === "reply") {
-        // "reply" is triggered via the reply-btn, not toolbar.
-        extraContainer.style.display = "none";
-      } else {
-        extraContainer.style.display = type === "text" ? "none" : "flex";
-      }
+      extraContainer.style.display = type === "text" ? "none" : "flex";
     }
 
     // ── Reply bar handler ───────────────────────────────────────
@@ -981,22 +976,13 @@
 
       let value = chatInput.value.trim();
 
-      // ── Reply: only triggered when user clicks "回复", not a toolbar type ──
-      if (replyingTo) {
-        if (!value) return;
-        currentWebSocket.send(JSON.stringify({
-          type: "reply",
-          body: { text: value, replyTo: replyingTo }
-        }));
-        chatInput.value = "";
-        replyingTo = null;
-        replyBar.classList.remove("show");
-        isAtBottom = true;
-        return;
-      }
-
       let type = currentMessageType;
       let body = {};
+
+      // If user clicked "回复", attach replyTo to any message type.
+      if (replyingTo) {
+        body.replyTo = replyingTo;
+      }
 
       switch (type) {
         case "text":
@@ -1065,6 +1051,12 @@
 
       currentWebSocket.send(JSON.stringify({ type, body }));
       chatInput.value = "";
+
+      // Reset reply state if user was replying.
+      if (replyingTo) {
+        replyingTo = null;
+        replyBar.classList.remove("show");
+      }
 
       // Reset extra inputs.
       Object.values(extraInputs).forEach(inp => { if (inp && inp.value !== undefined) inp.value = ""; });
@@ -1266,8 +1258,8 @@
     let content = document.createElement("div");
     content.className = "content";
 
-    // Render reply-preview if this is a reply.
-    if (type === "reply" && body.replyTo) {
+    // Render reply-preview if body carries a replyTo reference.
+    if (body.replyTo) {
       let preview = document.createElement("div");
       preview.className = "reply-preview";
       let rn = document.createElement("span");
@@ -1414,7 +1406,6 @@
       case "code_snippet": return "[代码] " + (body.language || "");
       case "location": return "[位置] " + (body.name || "");
       case "file": return "[文件] " + (body.filename || "");
-      case "reply": return (body.text || "").slice(0, 50);
       default: return "[消息]";
     }
   }
