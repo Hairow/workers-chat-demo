@@ -1138,12 +1138,22 @@
 
     uploadBtn.addEventListener("click", () => {
       fileInput.value = ""; // Allow re-uploading the same file.
+      _fileDialogOpen = true;
       fileInput.click();
-      // Show loading + disabled clear button while uploading.
+      // Show disabled clear button while file dialog is open, no loading yet.
       uploadBtn.style.display = "none";
-      uploadLoading.style.display = "inline-flex";
       clearUploadBtn.style.display = "inline-flex";
       clearUploadBtn.disabled = true;
+    });
+
+    // Detect file dialog cancel — revert buttons if no file selected.
+    let _fileDialogOpen = false;
+    window.addEventListener("focus", () => {
+      if (_fileDialogOpen && fileInput.files.length === 0 && !window._lastUpload) {
+        clearUploadBtn.style.display = "none";
+        uploadBtn.style.display = "inline-flex";
+      }
+      _fileDialogOpen = false;
     });
 
     clearUploadBtn.addEventListener("click", async () => {
@@ -1161,6 +1171,7 @@
     });
 
     fileInput.addEventListener("change", async () => {
+      _fileDialogOpen = false;
       let file = fileInput.files[0];
       if (!file) return;
 
@@ -1175,6 +1186,7 @@
         return;
       }
 
+      uploadLoading.style.display = "inline-flex";
       uploadBtn.classList.add("uploading");
       let originalTitle = uploadBtn.title;
       uploadBtn.title = "上传中...";
