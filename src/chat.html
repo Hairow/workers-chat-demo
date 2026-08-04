@@ -876,6 +876,9 @@
 
     document.location.hash = "#" + roomname;
 
+    // Set initial placeholder (toolbar click not triggered for default "text" type).
+    chatInput.placeholder = "输入消息...";
+
     chatInput.addEventListener("keydown", event => {
       if (event.keyCode == 38) {
         // up arrow
