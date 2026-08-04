@@ -215,84 +215,9 @@
       color: var(--text-secondary);
     }
 
-    /* ── Room chooser ─────────────────────────── */
-    .room-body {
-      gap: 16px;
-      text-align: center;
-    }
-
-    .room-body p {
-      font-size: 16px;
-      margin: 0;
-    }
-
-    #room-name {
-      width: 260px;
-      height: 48px;
-      padding: 0 14px;
-      font-size: 16px;
-      font-family: inherit;
-      color: var(--text-primary);
-      background: var(--surface);
-      border: 2px solid var(--border);
-      border-radius: var(--radius);
-      outline: none;
-      transition: border-color var(--transition), box-shadow var(--transition);
-    }
-
-    #room-name:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 4px rgba(0, 113, 227, .15);
-    }
-
-    #room-name::placeholder {
-      color: var(--text-secondary);
-    }
-
-    .btn {
-      height: 48px;
-      padding: 0 28px;
-      font-size: 16px;
-      font-family: inherit;
-      font-weight: 500;
-      color: #fff;
-      background: var(--accent);
-      border: none;
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: background var(--transition), transform 0.1s ease;
-    }
-
-    .btn:hover {
-      background: var(--accent-hover);
-    }
-
-    .btn:active {
-      transform: scale(0.97);
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    #go-public {
-      min-width: 80px;
-    }
-
-    #go-private {
-      min-width: 260px;
-    }
-
     @media (max-width:500px) {
-
-      .modal-input,
-      #room-name {
+      .modal-input {
         width: 220px;
-      }
-
-      #go-private {
-        min-width: 220px;
       }
     }
 
@@ -337,12 +262,6 @@
       color: #fff;
       background: var(--accent);
       border-color: var(--accent);
-    }
-
-    #upload-btn,
-    #clear-upload-btn,
-    .upload-loading {
-      margin-left: auto;
     }
 
     .upload-group {
@@ -493,7 +412,7 @@
       color: var(--accent);
     }
 
-    .msg-bubble .sender.self {
+    .msg-bubble.self .sender {
       color: #e53e3e;
     }
 
@@ -518,12 +437,12 @@
     }
 
     .msg-bubble .content audio {
-      max-width: 50%;
+      max-width: 100%;
       height: 36px;
     }
 
     .msg-bubble .content video {
-      max-width: 50%;
+      max-width: 100%;
       max-height: 240px;
       border-radius: 8px;
       background: #000;
@@ -696,7 +615,7 @@
         <div v-for="(msg, i) in chatMessages" :key="'cm-' + i" class="msg-bubble"
           :class="{ self: msg.name === username }" :data-ts="msg.ts">
           <div class="msg-header">
-            <span class="sender" :class="{ self: msg.name === username }">{{ msg.name }}</span>
+            <span class="sender">{{ msg.name }}</span>
             <span class="msg-time">{{ formatTime(msg.ts) }}</span>
           </div>
 
@@ -850,7 +769,6 @@
         replyingTo: null,
         chatInputText: '',
         lastUpload: null,     // upload result object
-        creatingPrivate: false,
         isAtBottom: true,
         rosterPanelOpen: false,
         previewUrl: null,
@@ -894,27 +812,7 @@
           this.roomname = 'helloworld';
           this.$nextTick(this.startChat);
         },
-        joinPublic: function () {
-          if (!this.roomname.trim()) return;
-          this.startChat();
-        },
-        createPrivate: function () {
-          var self = this;
-          this.creatingPrivate = true;
-          fetch('//' + this.hostname + '/api/room', { method: 'POST' })
-            .then(function (r) {
-              if (!r.ok) throw new Error('Failed');
-              return r.text();
-            })
-            .then(function (id) {
-              self.roomname = id;
-              self.startChat();
-            })
-            .catch(function (e) {
-              alert('Error: ' + e.message);
-              location.reload();
-            });
-        },
+
 
         // ── Chat core ──────────────────────────────
         startChat: function () {
