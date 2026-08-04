@@ -359,16 +359,28 @@
 
     /* ── Image preview overlay ────────────────── */
     .img-overlay {
-      display: none; position: fixed; z-index: 10; inset: 0;
-      background: rgba(0, 0, 0, .65); backdrop-filter: blur(6px);
-      align-items: center; justify-content: center;
+      display: none;
+      position: fixed;
+      z-index: 10;
+      inset: 0;
+      background: rgba(0, 0, 0, .65);
+      backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
     }
-    .img-overlay.open { display: flex; }
+
+    .img-overlay.open {
+      display: flex;
+    }
+
     .img-overlay img {
-      max-width: 90vw; max-height: 85vh; border-radius: 8px;
+      max-width: 90vw;
+      max-height: 85vh;
+      border-radius: 8px;
       box-shadow: 0 16px 48px rgba(0, 0, 0, .35);
       cursor: default;
     }
+
     /* ── Reply bar ────────────────────────────── */
     #reply-bar {
       position: fixed;
@@ -667,10 +679,7 @@
       <!-- Chat log -->
       <div id="chatlog" ref="chatlog" @scroll="onScroll">
         <div id="spacer"></div>
-        <p v-for="(msg, i) in messages" :key="i" :class="msg.sender ? '' : 'sys-msg'">
-          <span v-if="msg.sender" class="sender">{{ msg.sender }}</span>
-          {{ msg.text }}
-        </p>
+
         <div v-for="(msg, i) in chatMessages" :key="'cm-' + i" class="msg-bubble" :data-ts="msg.ts">
           <span class="sender">{{ msg.name }} </span>
           <button type="button" class="reply-btn" @click="startReply(msg)">回复</button>
@@ -682,10 +691,10 @@
 
             <template v-if="msg.type === 'text'">{{ msg.body.text }}</template>
 
-          <img v-else-if="msg.type === 'image' && msg.body.uploadId" class="msg-image"
-            :src="fileUrl(msg.body.uploadId)" :alt="msg.body.filename"
-            @click="openPreview(fileUrl(msg.body.uploadId))"
-            @error="e => { e.target.style.display = 'none'; e.target.alt = '[图片加载失败]'; }">
+            <img v-else-if="msg.type === 'image' && msg.body.uploadId" class="msg-image"
+              :src="fileUrl(msg.body.uploadId)" :alt="msg.body.filename"
+              @click="openPreview(fileUrl(msg.body.uploadId))"
+              @error="e => { e.target.style.display = 'none'; e.target.alt = '[图片加载失败]'; }">
 
             <template v-else-if="msg.type === 'audio' && msg.body.uploadId">
               <span v-if="msg.body.filename">🎤 {{ msg.body.filename }}</span>
@@ -725,6 +734,13 @@
             <template v-else>{{ msg.body.text || JSON.stringify(msg.body) }}</template>
           </div>
         </div>
+
+
+        <p v-for="(msg, i) in messages" :key="i" :class="msg.sender ? '' : 'sys-msg'">
+          <span v-if="msg.sender" class="sender">{{ msg.sender }}</span>
+          {{ msg.text }}
+        </p>
+
       </div>
 
       <!-- Roster toggle + dropdown -->
@@ -1117,14 +1133,14 @@
           });
         },
 
-    // ── Image preview ──────────────────────────
-    openPreview: function (url) {
-      this.previewUrl = url;
-    },
+        // ── Image preview ──────────────────────────
+        openPreview: function (url) {
+          this.previewUrl = url;
+        },
 
-    // ── Roster ─────────────────────────────────
-    // Roster is toggled via rosterPanelOpen data property directly in template.
-    // 在线列表通过 rosterPanelOpen 数据属性在模板中直接切换。
+        // ── Roster ─────────────────────────────────
+        // Roster is toggled via rosterPanelOpen data property directly in template.
+        // 在线列表通过 rosterPanelOpen 数据属性在模板中直接切换。
 
         // ── Reply ──────────────────────────────────
         startReply: function (msg) {
