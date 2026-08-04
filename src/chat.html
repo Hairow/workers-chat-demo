@@ -289,7 +289,8 @@
       color: var(--text-secondary);
     }
 
-    #upload-btn, #clear-upload-btn {
+    #upload-btn,
+    #clear-upload-btn {
       display: none;
       margin-left: auto;
     }
@@ -306,7 +307,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     #upload-btn.uploading,
@@ -754,7 +757,7 @@
       <button type="button" data-type="location" title="位置">📍</button>
       <button id="upload-btn" type="button" title="上传" style="display:none">📤</button>
       <span id="upload-loading" style="display:none">⏳</span>
-      <button id="clear-upload-btn" type="button" title="取消上传" style="display:none">✕</button>
+      <button id="clear-upload-btn" type="button" title="删除上传" style="display:none">✕</button>
     </div>
     <div id="reply-bar"><span class="reply-text"></span><span class="cancel-reply">✕</span></div>
     <input id="chat-input">
@@ -1088,6 +1091,9 @@
       if (["image", "audio", "video"].includes(type)) {
         window._lastUpload = null;
         chatInput.placeholder = getPlaceholder(type);
+        clearUploadBtn.style.display = "none";
+        clearUploadBtn.disabled = true;
+        uploadBtn.style.display = "inline-flex";
       }
 
       // Reset reply state if user was replying.
@@ -1222,6 +1228,7 @@
 
         // Enable clear button, hide loading after upload completes.
         uploadLoading.style.display = "none";
+        clearUploadBtn.style.display = "inline-flex";
         clearUploadBtn.disabled = false;
 
         // Show filename in input as hint, clear on type.
