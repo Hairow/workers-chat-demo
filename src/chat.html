@@ -482,6 +482,10 @@
       margin-bottom: 24px;
       animation: msgIn 0.25s ease-out;
     }
+    .msg-bubble.self {
+      align-items: flex-end;
+      text-align: right;
+    }
 
     .msg-bubble .sender {
       font-size: 12px;
@@ -688,7 +692,8 @@
       <div id="chatlog" ref="chatlog" @scroll="onScroll">
         <div id="spacer"></div>
 
-        <div v-for="(msg, i) in chatMessages" :key="'cm-' + i" class="msg-bubble" :data-ts="msg.ts">
+        <div v-for="(msg, i) in chatMessages" :key="'cm-' + i" class="msg-bubble"
+          :class="{ self: msg.name === username }" :data-ts="msg.ts">
           <div class="msg-header">
             <span class="sender" :class="{ self: msg.name === username }">{{ msg.name }}</span>
             <span class="msg-time">{{ formatTime(msg.ts) }}</span>
