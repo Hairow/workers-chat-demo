@@ -75,7 +75,7 @@ export async function handleUpload(request, env) {
     env.CHAT_ROOMS.put(blobKey, arrayBuffer),
   ]);
 
-  return Response.json({ id, type, mimeType, filename: file.name, size: file.size });
+  return Response.json({ id, type, mimeType, filename: file.name, size: file.size, duration });
 }
 
 /** Shared helper — load upload metadata by id. */

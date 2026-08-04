@@ -939,9 +939,9 @@
     function getPlaceholder(type) {
       let map = {
         text: "输入消息...",
-        image: "图片 URL...",
-        audio: "音频 URL...",
-        video: "视频 URL...",
+        image: "请先上传图片...",
+        audio: "请先上传音频...",
+        video: "请先上传视频...",
         product_card: "商品标题...",
         code_snippet: "输入代码...",
         location: "位置名称...",
@@ -968,8 +968,8 @@
 
       let fields = {
         image:        [{ name: "caption", placeholder: "标注（可选）" }],
-        audio:        [{ name: "duration", placeholder: "时长（秒）可选" }],
-        video:        [{ name: "thumbnail", placeholder: "封面图 URL（可选）" }, { name: "duration", placeholder: "时长（秒）可选" }],
+        audio:        [],
+        video:        [{ name: "thumbnail", placeholder: "封面图 URL（可选）" }],
         product_card: [{ name: "image", placeholder: "图片 URL" }, { name: "price", placeholder: "价格" }, { name: "link", placeholder: "链接（可选）" }],
         code_snippet: [{ name: "language", placeholder: "语言（可选）" }],
         location:     [{ name: "lat", placeholder: "纬度" }, { name: "lng", placeholder: "经度" }],
@@ -1020,31 +1020,22 @@
           body = { text: value };
           break;
         case "image":
-          if (!value) return;
-          body = { url: value };
+          if (!window._lastUpload || window._lastUpload.type !== "image") return;
+          body = buildUploadBody();
           if (extraInputs["caption"] && extraInputs["caption"].value.trim()) {
             body.caption = extraInputs["caption"].value.trim();
           }
-          attachUploadMeta(body, value);
           break;
         case "audio":
-          if (!value) return;
-          body = { url: value };
-          if (extraInputs["duration"] && extraInputs["duration"].value.trim()) {
-            body.duration = parseInt(extraInputs["duration"].value) || 0;
-          }
-          attachUploadMeta(body, value);
+          if (!window._lastUpload || window._lastUpload.type !== "audio") return;
+          body = buildUploadBody();
           break;
         case "video":
-          if (!value) return;
-          body = { url: value };
+          if (!window._lastUpload || window._lastUpload.type !== "video") return;
+          body = buildUploadBody();
           if (extraInputs["thumbnail"] && extraInputs["thumbnail"].value.trim()) {
             body.thumbnail = extraInputs["thumbnail"].value.trim();
           }
-          if (extraInputs["duration"] && extraInputs["duration"].value.trim()) {
-            body.duration = parseInt(extraInputs["duration"].value) || 0;
-          }
-          attachUploadMeta(body, value);
           break;
         case "product_card":
           if (!value) return;
@@ -1110,14 +1101,18 @@
 
     chatInput.focus();
 
-    // Helper: attach upload metadata when the URL matches the last upload.
-    function attachUploadMeta(body, url) {
+    // Helper: build message body from the last upload result.
+    function buildUploadBody() {
       let last = window._lastUpload;
-      if (!last || !url || !url.includes(`/api/file/${last.id}/`)) return;
-      body.uploadId = last.id;
-      body.filename = last.filename || "";
-      body.mimeType = last.mimeType || "";
-      body.size = last.size || 0;
+      let body = {
+        uploadId: last.id,
+        filename: last.filename || "",
+        mimeType: last.mimeType || "",
+        size: last.size || 0,
+      };
+      // duration is read-only from API, only for audio/video.
+      if (last.duration) body.duration = last.duration;
+      return body;
     }
 
     // ── File upload ──────────────────────────────────────────────
@@ -1174,17 +1169,16 @@
         }
 
         let result = await resp.json();
-        // Store last upload result for attaching to message body.
+        // Store last upload result for building message body on submit.
         window._lastUpload = result;
-        // Build the access URL.
-        let fileUrl = `${location.protocol}//${location.host}/api/file/${result.id}/blob`;
 
-        // Insert URL into chat input, switch to correct type.
-        let type = result.type; // "image" or "video"
+        // Switch toolbar to match file type.
+        let type = result.type; // "image", "video", or "audio"
         let btn = msgToolbar.querySelector(`button[data-type="${type}"]`);
-        if (btn) btn.click(); // Switch toolbar to match file type.
+        if (btn) btn.click();
 
-        chatInput.value = fileUrl;
+        // Show filename in input as hint, clear on type.
+        chatInput.value = result.filename || "";
         chatInput.focus();
       } catch (err) {
         alert("上传失败: " + err.message);
@@ -1385,47 +1379,53 @@
       case "text":
         content.appendChild(document.createTextNode(body.text || ""));
         break;
-      case "image":
-        if (body.url) {
-          let img = document.createElement("img");
-          img.className = "msg-image";
-          img.src = body.url;
-          img.alt = body.caption || "";
-          img.onerror = () => { img.alt = "[图片加载失败]"; img.style.display = "none"; };
-          content.appendChild(img);
-          if (body.caption) {
-            let cap = document.createElement("div");
-            cap.className = "caption";
-            cap.innerText = body.caption;
-            content.appendChild(cap);
+      case "image": {
+          let imgUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
+          if (imgUrl) {
+            let img = document.createElement("img");
+            img.className = "msg-image";
+            img.src = imgUrl;
+            img.alt = body.caption || "";
+            img.onerror = () => { img.alt = "[图片加载失败]"; img.style.display = "none"; };
+            content.appendChild(img);
+            if (body.caption) {
+              let cap = document.createElement("div");
+              cap.className = "caption";
+              cap.innerText = body.caption;
+              content.appendChild(cap);
+            }
           }
+          break;
         }
-        break;
-      case "audio":
-        if (body.url) {
-          let infoParts = [];
-          if (body.filename) infoParts.push("🎤 " + body.filename);
-          if (body.duration) infoParts.push(body.duration + "s");
-          if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
-          let audio = document.createElement("audio");
-          audio.controls = true;
-          audio.src = body.url;
-          content.appendChild(audio);
+      case "audio": {
+          let mediaUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
+          if (mediaUrl) {
+            let infoParts = [];
+            if (body.filename) infoParts.push("🎤 " + body.filename);
+            if (body.duration) infoParts.push(Math.round(body.duration) + "s");
+            if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
+            let audio = document.createElement("audio");
+            audio.controls = true;
+            audio.src = mediaUrl;
+            content.appendChild(audio);
+          }
+          break;
         }
-        break;
-      case "video":
-        if (body.url) {
-          let infoParts = [];
-          if (body.filename) infoParts.push("🎬 " + body.filename);
-          if (body.duration) infoParts.push(body.duration + "s");
-          if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
-          let vid = document.createElement("video");
-          vid.controls = true;
-          vid.src = body.url;
-          vid.poster = body.thumbnail || "";
-          content.appendChild(vid);
+      case "video": {
+          let mediaUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
+          if (mediaUrl) {
+            let infoParts = [];
+            if (body.filename) infoParts.push("🎬 " + body.filename);
+            if (body.duration) infoParts.push(Math.round(body.duration) + "s");
+            if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
+            let vid = document.createElement("video");
+            vid.controls = true;
+            vid.src = mediaUrl;
+            vid.poster = body.thumbnail || "";
+            content.appendChild(vid);
+          }
+          break;
         }
-        break;
       case "product_card":
         {
           let card = document.createElement("div");
