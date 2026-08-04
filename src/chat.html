@@ -369,12 +369,6 @@
       box-shadow: 0 16px 48px rgba(0, 0, 0, .35);
       cursor: default;
     }
-    .img-preview-btn {
-      font-size: 11px; font-weight: 500; color: var(--accent);
-      cursor: pointer; background: none; border: none; padding: 0 4px;
-      margin-left: 4px;
-    }
-
     /* ── Reply bar ────────────────────────────── */
     #reply-bar {
       position: fixed;
@@ -484,6 +478,7 @@
       max-height: 240px;
       border-radius: 8px;
       display: block;
+      cursor: pointer;
     }
 
     .msg-bubble .content audio {
@@ -689,9 +684,8 @@
 
           <img v-else-if="msg.type === 'image' && msg.body.uploadId" class="msg-image"
             :src="fileUrl(msg.body.uploadId)" :alt="msg.body.filename"
+            @click="openPreview(fileUrl(msg.body.uploadId))"
             @error="e => { e.target.style.display = 'none'; e.target.alt = '[图片加载失败]'; }">
-          <button v-if="msg.type === 'image' && msg.body.uploadId" class="img-preview-btn"
-            @click="openPreview(fileUrl(msg.body.uploadId))">预览</button>
 
             <template v-else-if="msg.type === 'audio' && msg.body.uploadId">
               <span v-if="msg.body.filename">🎤 {{ msg.body.filename }}</span>
