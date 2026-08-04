@@ -79,7 +79,7 @@
 
 import HTML from "./chat.html";
 import { handleErrors } from "./utils.mjs";
-import { handleUpload, handleFileMeta, handleFileBlob } from "./upload.mjs";
+import { handleUpload, handleDeleteUpload, handleFileMeta, handleFileBlob } from "./upload.mjs";
 
 // Re-export Durable Object classes so that Cloudflare can discover them.
 // 重新导出 Durable Object 类，以便 Cloudflare 可以发现它们。
@@ -137,10 +137,12 @@ async function handleApiRequest(path, request, env) {
       return handleUpload(request, env);
 
     case "file": {
-      // GET /api/file/<id>/meta — return JSON metadata.
-      // GET /api/file/<id>/blob — serve binary content.
+      // GET  /api/file/<id>/meta — return JSON metadata.
+      // GET  /api/file/<id>/blob — serve binary content.
+      // DELETE /api/file/<id>    — delete upload.
       let id = path[1];
       let action = path[2];
+      if (request.method === "DELETE") return handleDeleteUpload(id, env);
       if (action === "meta") return handleFileMeta(id, env);
       if (action === "blob") return handleFileBlob(id, request, env);
       return new Response("Not found", { status: 404 });

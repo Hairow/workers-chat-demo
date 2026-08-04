@@ -289,14 +289,15 @@
       color: var(--text-secondary);
     }
 
-    #upload-btn {
+    #upload-btn, #clear-upload-btn {
       display: none;
       margin-left: auto;
     }
 
-    #upload-btn.uploading {
+    #upload-btn.uploading,
+    #clear-upload-btn:disabled {
       opacity: 0.6;
-      pointer-events: none;
+      cursor: not-allowed;
     }
 
     #chatroom::before {
@@ -729,14 +730,15 @@
     <div id="roster-backdrop"></div>
     <div id="roster"></div>
     <div id="msg-toolbar">
-      <button data-type="text" class="active" title="文字">T</button>
-      <button data-type="image" title="图片">🖼</button>
-      <button data-type="audio" title="语音">🎤</button>
-      <button data-type="video" title="视频">🎬</button>
-      <button data-type="product_card" title="商品卡片">🛒</button>
-      <button data-type="code_snippet" title="代码片段">&lt;/&gt;</button>
-      <button data-type="location" title="位置">📍</button>
-      <button id="upload-btn" type="button" title="上传文件" style="display:none">📤</button>
+      <button type="button" data-type="text" class="active" title="文字">T</button>
+      <button type="button" data-type="image" title="图片">🖼</button>
+      <button type="button" data-type="audio" title="语音">🎤</button>
+      <button type="button" data-type="video" title="视频">🎬</button>
+      <button type="button" data-type="product_card" title="商品卡片">🛒</button>
+      <button type="button" data-type="code_snippet" title="代码片段">&lt;/&gt;</button>
+      <button type="button" data-type="location" title="位置">📍</button>
+      <button id="upload-btn" type="button" title="上传" style="display:none">📤</button>
+      <button id="clear-upload-btn" type="button" title="取消上传" style="display:none">✕</button>
     </div>
     <div id="reply-bar"><span class="reply-text"></span><span class="cancel-reply">✕</span></div>
     <input id="chat-input">
@@ -898,8 +900,22 @@
         btn.classList.add("active");
         currentMessageType = btn.dataset.type;
 
-        // Show/hide upload button only for media types.
-        uploadBtn.style.display = ["image", "audio", "video"].includes(currentMessageType) ? "inline-flex" : "none";
+        // Show/hide upload/clear button only for media types.
+        if (["image", "audio", "video"].includes(currentMessageType)) {
+          if (window._lastUpload) {
+            uploadBtn.style.display = "none";
+            clearUploadBtn.style.display = "inline-flex";
+            clearUploadBtn.disabled = false;
+          } else {
+            uploadBtn.style.display = "inline-flex";
+            clearUploadBtn.style.display = "none";
+            clearUploadBtn.disabled = true;
+          }
+        } else {
+          uploadBtn.style.display = "none";
+          clearUploadBtn.style.display = "none";
+          clearUploadBtn.disabled = true;
+        }
 
         // Show/hide extra input fields based on type.
         updateExtraInputs(currentMessageType);
@@ -1094,10 +1110,28 @@
     // ── File upload ──────────────────────────────────────────────
     let fileInput = document.querySelector("#file-input");
     let uploadBtn = document.querySelector("#upload-btn");
+    let clearUploadBtn = document.querySelector("#clear-upload-btn");
 
     uploadBtn.addEventListener("click", () => {
       fileInput.value = ""; // Allow re-uploading the same file.
       fileInput.click();
+      // Show disabled clear button while uploading.
+      uploadBtn.style.display = "none";
+      clearUploadBtn.style.display = "inline-flex";
+      clearUploadBtn.disabled = true;
+    });
+
+    clearUploadBtn.addEventListener("click", async () => {
+      let uploadId = window._lastUpload && window._lastUpload.id;
+      if (uploadId) {
+        await fetch(`/api/file/${encodeURIComponent(uploadId)}`, { method: "DELETE" });
+      }
+      window._lastUpload = null;
+      fileInput.value = "";
+      chatInput.value = "";
+      clearUploadBtn.style.display = "none";
+      clearUploadBtn.disabled = false;
+      uploadBtn.style.display = "inline-flex";
     });
 
     fileInput.addEventListener("change", async () => {
@@ -1147,6 +1181,9 @@
         let result = await resp.json();
         // Store last upload result for building message body on submit.
         window._lastUpload = result;
+
+        // Enable clear button after upload completes.
+        clearUploadBtn.disabled = false;
 
         // Show filename in input as hint, clear on type.
         chatInput.value = result.filename || "";

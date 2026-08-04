@@ -78,6 +78,24 @@ export async function handleUpload(request, env) {
   return Response.json({ id, type, mimeType, filename: file.name, size: file.size, duration });
 }
 
+/** Handle DELETE /api/file/<id> — delete upload metadata + blob from KV. */
+export async function handleDeleteUpload(id, env) {
+  if (!id) return new Response("Missing id", { status: 400 });
+
+  let metadata = await getMetadata(id, env);
+  if (!metadata) return new Response("Upload not found", { status: 404 });
+
+  // Delete both metadata and blob records.
+  let metaKey = `upload:${id}`;
+  let blobKey = metadata.contentKey;
+  await Promise.all([
+    env.CHAT_ROOMS.delete(metaKey),
+    env.CHAT_ROOMS.delete(blobKey),
+  ]);
+
+  return Response.json({ success: true });
+}
+
 /** Shared helper — load upload metadata by id. */
 async function getMetadata(id, env) {
   let metaStr = await env.CHAT_ROOMS.get(`upload:${id}`);
