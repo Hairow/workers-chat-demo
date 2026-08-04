@@ -323,12 +323,15 @@ export class ChatRoom {
       let key = new Date(data.timestamp).toISOString();
       await this.storage.put(key, dataStr);
 
-      // Keep only the last 1000 messages.
-      // 只保留最近 1000 条消息。
-      let allKeys = [...(await this.storage.list()).keys()];
-      if (allKeys.length > 1000) {
-        let keysToDelete = allKeys.sort().slice(0, allKeys.length - 1000);
-        await Promise.all(keysToDelete.map(k => this.storage.delete(k)));
+      // Keep only the last 1000 messages (check every 100 messages to avoid blocking).
+      // 只保留最近 1000 条消息（每 100 条检查一次，减少阻塞）。
+      this._msgCount = (this._msgCount || 0) + 1;
+      if (this._msgCount % 100 === 0) {
+        let allKeys = [...(await this.storage.list()).keys()];
+        if (allKeys.length > 1000) {
+          let keysToDelete = allKeys.sort().slice(0, allKeys.length - 1000);
+          await Promise.all(keysToDelete.map(k => this.storage.delete(k)));
+        }
       }
     } catch (err) {
       webSocket.send(JSON.stringify({ error: err.stack }));
