@@ -441,6 +441,262 @@
         min-width: 220px;
       }
     }
+
+    /* ── Message type toolbar ─────────────────────────────────── */
+    #msg-toolbar {
+      position: fixed;
+      bottom: 52px;
+      left: 0;
+      right: 220px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 12px 0 42px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      overflow-x: auto;
+      z-index: 1;
+    }
+
+    @media(max-width:600px) {
+      #msg-toolbar {
+        right: 0;
+      }
+    }
+
+    #msg-toolbar button {
+      height: 26px;
+      padding: 0 10px;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--transition);
+    }
+
+    #msg-toolbar button:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    #msg-toolbar button.active {
+      color: #fff;
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* ── Reply bar ────────────────────────────────────────────── */
+    #reply-bar {
+      display: none;
+      position: fixed;
+      bottom: 88px;
+      left: 0;
+      right: 0;
+      height: 32px;
+      padding: 0 16px 0 42px;
+      font-size: 12px;
+      line-height: 32px;
+      color: var(--text-secondary);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      z-index: 1;
+    }
+
+    #reply-bar.show {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #reply-bar .cancel-reply {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--danger);
+      margin-left: 12px;
+    }
+
+    /* ── Rendered message styles ───────────────────────────────── */
+    .msg-bubble {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+      animation: msgIn 0.25s ease-out;
+    }
+
+    .msg-bubble .sender {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .msg-bubble .content {
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      line-height: 1.5;
+      font-size: 14px;
+      max-width: 100%;
+      word-break: break-word;
+    }
+
+    .msg-bubble .content img.msg-image {
+      max-width: 240px;
+      max-height: 240px;
+      border-radius: 8px;
+      display: block;
+    }
+
+    .msg-bubble .content img.msg-image+.caption {
+      margin-top: 4px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .msg-bubble .content audio {
+      max-width: 100%;
+      height: 36px;
+    }
+
+    .msg-bubble .content video {
+      max-width: 100%;
+      max-height: 240px;
+      border-radius: 8px;
+      background: #000;
+    }
+
+    .msg-bubble .content .video-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .msg-bubble .content .video-info .play-icon {
+      font-size: 20px;
+    }
+
+    .msg-bubble .product-card {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border-radius: var(--radius);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: box-shadow var(--transition);
+    }
+
+    .msg-bubble .product-card:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    .msg-bubble .product-card img {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .msg-bubble .product-card .info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .msg-bubble .product-card .title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .msg-bubble .product-card .price {
+      font-weight: 700;
+      color: #ff3b30;
+      font-size: 16px;
+    }
+
+    .msg-bubble .product-card .arrow {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      color: var(--text-secondary);
+      font-size: 18px;
+    }
+
+    .msg-bubble .code-block {
+      background: #1d1d1f;
+      color: #f5f5f7;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      margin: 4px -2px;
+    }
+
+    .msg-bubble .reply-preview {
+      padding: 6px 10px;
+      margin-bottom: 6px;
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      background: var(--bg);
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .msg-bubble .reply-preview .replied-name {
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .msg-bubble .reply-btn {
+      display: none;
+      float: right;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0 4px;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .msg-bubble:hover .reply-btn {
+      opacity: 1;
+    }
+
+    .msg-bubble .location-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .msg-bubble .file-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--bg);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .msg-bubble .file-row .file-icon {
+      font-size: 20px;
+    }
   </style>
 
   <!--===================================================================================-->
@@ -469,6 +725,17 @@
     <button id="roster-toggle" type="button"><span class="dot"></span><span id="roster-count">0</span></button>
     <div id="roster-backdrop"></div>
     <div id="roster"></div>
+    <div id="msg-toolbar">
+      <button data-type="text" class="active" title="文字">T</button>
+      <button data-type="image" title="图片">🖼</button>
+      <button data-type="audio" title="语音">🎤</button>
+      <button data-type="video" title="视频">🎬</button>
+      <button data-type="product_card" title="商品卡片">🛒</button>
+      <button data-type="code_snippet" title="代码片段">&lt;/&gt;</button>
+      <button data-type="location" title="位置">📍</button>
+      <button data-type="file" title="文件">📎</button>
+    </div>
+    <div id="reply-bar"><span class="reply-text"></span><span class="cancel-reply">✕</span></div>
     <input id="chat-input">
   </form>
 </body>
@@ -478,6 +745,13 @@
 
 <script type="text/javascript">
   let currentWebSocket = null;
+
+  // Current message type & reply state.
+  let currentMessageType = "text";
+  let replyingTo = null;
+
+  // Type-specific input fields (shown/hidden dynamically).
+  let extraInputs = {}; // { fieldName: inputElement }
 
   let nameForm = document.querySelector("#name-form");
   let nameInput = document.querySelector("#name-input");
@@ -492,6 +766,8 @@
   let rosterToggle = document.querySelector("#roster-toggle");
   let rosterBackdrop = document.querySelector("#roster-backdrop");
   let rosterCount = document.querySelector("#roster-count");
+  let msgToolbar = document.querySelector("#msg-toolbar");
+  let replyBar = document.querySelector("#reply-bar");
 
   // Is the chatlog scrolled to the bottom?
   let isAtBottom = true;
@@ -610,22 +886,196 @@
       }
     });
 
+    // ── Message type toolbar ────────────────────────────────────
+    msgToolbar.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        // Update active button.
+        msgToolbar.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentMessageType = btn.dataset.type;
+
+        // Show/hide extra input fields based on type.
+        updateExtraInputs(currentMessageType);
+        chatInput.placeholder = getPlaceholder(currentMessageType);
+        chatInput.focus();
+      });
+    });
+
+    function getPlaceholder(type) {
+      let map = {
+        text: "输入消息...",
+        image: "图片 URL...",
+        audio: "音频 URL...",
+        video: "视频 URL...",
+        product_card: "商品标题...",
+        code_snippet: "输入代码...",
+        location: "位置名称...",
+        file: "文件描述...",
+      };
+      return map[type] || "输入消息...";
+    }
+
+    function buildExtraInputs() {
+      let container = document.createElement("div");
+      container.id = "extra-inputs";
+      container.style.cssText =
+        "position:fixed;bottom:88px;left:0;right:0;display:flex;flex-wrap:wrap;gap:8px;padding:6px 16px 6px 42px;background:var(--surface);border-top:1px solid var(--border);z-index:1;";
+
+      // We'll add fields dynamically in updateExtraInputs.
+      chatroom.parentNode.insertBefore(container, chatroom.nextSibling);
+      return container;
+    }
+    let extraContainer = buildExtraInputs();
+
+    function updateExtraInputs(type) {
+      // Remove all existing extra inputs.
+      while (extraContainer.firstChild) extraContainer.removeChild(extraContainer.firstChild);
+      extraInputs = {};
+
+      let fields = {
+        image:        [{ name: "caption", placeholder: "标注（可选）" }],
+        audio:        [{ name: "duration", placeholder: "时长（秒）可选" }],
+        video:        [{ name: "thumbnail", placeholder: "封面图 URL（可选）" }, { name: "duration", placeholder: "时长（秒）可选" }],
+        product_card: [{ name: "image", placeholder: "图片 URL" }, { name: "price", placeholder: "价格" }, { name: "link", placeholder: "链接（可选）" }],
+        code_snippet: [{ name: "language", placeholder: "语言（可选）" }],
+        location:     [{ name: "lat", placeholder: "纬度" }, { name: "lng", placeholder: "经度" }],
+        file:         [{ name: "url", placeholder: "文件 URL" }, { name: "size", placeholder: "文件大小" }],
+      };
+
+      if (fields[type]) {
+        fields[type].forEach(f => {
+          let inp = document.createElement("input");
+          inp.type = "text";
+          inp.placeholder = f.placeholder;
+          inp.style.cssText =
+            "flex:1;min-width:80px;height:28px;padding:0 8px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;outline:none;";
+          inp.addEventListener("keydown", e => {
+            if (e.keyCode === 13) {
+              e.preventDefault();
+              chatInput.focus();
+            }
+          });
+          extraContainer.appendChild(inp);
+          extraInputs[f.name] = inp;
+        });
+      }
+
+      if (type === "reply") {
+        // "reply" is triggered via the reply-btn, not toolbar.
+        extraContainer.style.display = "none";
+      } else {
+        extraContainer.style.display = type === "text" ? "none" : "flex";
+      }
+    }
+
+    // ── Reply bar handler ───────────────────────────────────────
+    replyBar.querySelector(".cancel-reply").addEventListener("click", () => {
+      replyingTo = null;
+      replyBar.classList.remove("show");
+    });
+
+    // ── Submit ──────────────────────────────────────────────────
     chatroom.addEventListener("submit", event => {
       event.preventDefault();
+      if (!currentWebSocket) return;
 
-      if (currentWebSocket) {
-        currentWebSocket.send(JSON.stringify({ message: chatInput.value }));
-        chatInput.value = "";
+      let type = currentMessageType;
+      let body = {};
+      let value = chatInput.value.trim();
 
-        // Force the scroll state to bottom so that when the server echoes the
-        // message back, addChatMessage() will scroll to show it.
-        isAtBottom = true;
+      switch (type) {
+        case "text":
+          if (!value) return;
+          body = { text: value };
+          break;
+        case "image":
+          if (!value) return;
+          body = { url: value };
+          if (extraInputs["caption"] && extraInputs["caption"].value.trim()) {
+            body.caption = extraInputs["caption"].value.trim();
+          }
+          break;
+        case "audio":
+          if (!value) return;
+          body = { url: value };
+          if (extraInputs["duration"] && extraInputs["duration"].value.trim()) {
+            body.duration = parseInt(extraInputs["duration"].value) || 0;
+          }
+          break;
+        case "video":
+          if (!value) return;
+          body = { url: value };
+          if (extraInputs["thumbnail"] && extraInputs["thumbnail"].value.trim()) {
+            body.thumbnail = extraInputs["thumbnail"].value.trim();
+          }
+          if (extraInputs["duration"] && extraInputs["duration"].value.trim()) {
+            body.duration = parseInt(extraInputs["duration"].value) || 0;
+          }
+          break;
+        case "product_card":
+          if (!value) return;
+          body = {
+            title: value,
+            image: (extraInputs["image"] && extraInputs["image"].value.trim()) || "",
+            price: (extraInputs["price"] && extraInputs["price"].value.trim()) || "",
+          };
+          if (extraInputs["link"] && extraInputs["link"].value.trim()) {
+            body.link = extraInputs["link"].value.trim();
+          }
+          break;
+        case "code_snippet":
+          if (!value) return;
+          body = { code: value };
+          if (extraInputs["language"] && extraInputs["language"].value.trim()) {
+            body.language = extraInputs["language"].value.trim();
+          }
+          break;
+        case "location":
+          body = {
+            name: value,
+            lat: parseFloat(extraInputs["lat"] ? extraInputs["lat"].value : 0) || 0,
+            lng: parseFloat(extraInputs["lng"] ? extraInputs["lng"].value : 0) || 0,
+          };
+          break;
+        case "file":
+          body = {
+            filename: value,
+            url: (extraInputs["url"] && extraInputs["url"].value.trim()) || "",
+            size: (extraInputs["size"] && extraInputs["size"].value.trim()) || "",
+          };
+          break;
+        case "reply":
+          if (!replyingTo || !value) return;
+          body = { text: value, replyTo: replyingTo };
+          break;
+        default:
+          return;
       }
+
+      let payload = { type, body };
+      if (replyingTo) {
+        // Attach reply info; use replyingTo as the reply target.
+        payload.type = "reply";
+        payload.body = { text: value, replyTo: replyingTo };
+      }
+
+      currentWebSocket.send(JSON.stringify(payload));
+      chatInput.value = "";
+
+      // Clear reply state.
+      replyingTo = null;
+      replyBar.classList.remove("show");
+
+      // Reset extra inputs.
+      Object.values(extraInputs).forEach(inp => { if (inp && inp.value !== undefined) inp.value = ""; });
+
+      isAtBottom = true;
     });
 
     chatInput.addEventListener("input", event => {
-      if (event.currentTarget.value.length > 256) {
-        event.currentTarget.value = event.currentTarget.value.slice(0, 256);
+      let max = currentMessageType === "code_snippet" ? 4096 : 2048;
+      if (event.currentTarget.value.length > max) {
+        event.currentTarget.value = event.currentTarget.value.slice(0, max);
       }
     });
 
@@ -725,6 +1175,7 @@
       } else if (data.joined) {
         let p = document.createElement("p");
         p.setAttribute("data-name", data.joined);
+        p.setAttribute("data-ip", data.ip || "");
         p.innerText = data.joined + (data.ip ? " (" + data.ip + ")" : "");
         roster.appendChild(p);
         updateRosterCount();
@@ -737,7 +1188,6 @@
         }
         updateRosterCount();
       } else if (data.ready) {
-        // All pre-join messages have been delivered.
         if (!wroteWelcomeMessages) {
           wroteWelcomeMessages = true;
           addChatMessage(null,
@@ -755,10 +1205,9 @@
               "* Welcome to #" + roomname + ". Say hi!");
           }
         }
-      } else {
-        // A regular chat message.
+      } else if (data.type && data.body) {
         if (data.timestamp > lastSeenTimestamp) {
-          addChatMessage(data.name, data.message);
+          addChatMessage(data.sender ? data.sender.name : null, data);
           lastSeenTimestamp = data.timestamp;
         }
       }
@@ -774,25 +1223,199 @@
     });
   }
 
-  function addChatMessage(name, text) {
-    let p = document.createElement("p");
-    if (name) {
-      let tag = document.createElement("span");
-      tag.className = "username";
-      tag.innerText = name + ": ";
-      p.appendChild(tag);
+  function addChatMessage(name, data) {
+    // ── System / notification message ──
+    if (name === null && typeof data === "string") {
+      let p = document.createElement("p");
+      p.innerText = data;
+      chatlog.appendChild(p);
+      if (isAtBottom) requestAnimationFrame(() => { chatlog.scrollTop = chatlog.scrollHeight; });
+      return;
     }
-    p.appendChild(document.createTextNode(text));
 
-    chatlog.appendChild(p);
+    // ── New typed envelope ──
+    let envelope = data;
+    let type = envelope.type;
+    let body = envelope.body || {};
+    let senderName = envelope.sender ? envelope.sender.name : (name || "unknown");
+    let timestamp = envelope.timestamp || 0;
 
-    // Always scroll to bottom when a new message arrives, using requestAnimationFrame
-    // to ensure the DOM has been painted. Using scrollTop = scrollHeight is more
-    // reliable than scrollBy() for keeping new messages visible.
+    let bubble = document.createElement("div");
+    bubble.className = "msg-bubble";
+    bubble.setAttribute("data-ts", timestamp);
+
+    // Sender line.
+    let senderSpan = document.createElement("span");
+    senderSpan.className = "sender";
+    senderSpan.innerText = senderName + " ";
+    bubble.appendChild(senderSpan);
+
+    // Reply button (hover to show).
+    let replyBtn = document.createElement("button");
+    replyBtn.className = "reply-btn";
+    replyBtn.textContent = "回复";
+    replyBtn.addEventListener("click", () => {
+      replyingTo = { name: senderName, text: getPreviewText(type, body), type: type };
+      replyBar.querySelector(".reply-text").innerText = "回复 " + senderName + ": " + getPreviewText(type, body);
+      replyBar.classList.add("show");
+      chatInput.focus();
+    });
+    bubble.appendChild(replyBtn);
+
+    // Content container.
+    let content = document.createElement("div");
+    content.className = "content";
+
+    // Render reply-preview if this is a reply.
+    if (type === "reply" && body.replyTo) {
+      let preview = document.createElement("div");
+      preview.className = "reply-preview";
+      let rn = document.createElement("span");
+      rn.className = "replied-name";
+      rn.innerText = body.replyTo.name || "";
+      preview.appendChild(rn);
+      preview.appendChild(document.createTextNode(": " + (body.replyTo.text || "")));
+      content.appendChild(preview);
+    }
+
+    // Render type-specific body.
+    switch (type) {
+      case "text":
+        content.appendChild(document.createTextNode(body.text || ""));
+        break;
+      case "image":
+        if (body.url) {
+          let img = document.createElement("img");
+          img.className = "msg-image";
+          img.src = body.url;
+          img.alt = body.caption || "";
+          img.onerror = () => { img.alt = "[图片加载失败]"; img.style.display = "none"; };
+          content.appendChild(img);
+          if (body.caption) {
+            let cap = document.createElement("div");
+            cap.className = "caption";
+            cap.innerText = body.caption;
+            content.appendChild(cap);
+          }
+        }
+        break;
+      case "audio":
+        if (body.url) {
+          let audio = document.createElement("audio");
+          audio.controls = true;
+          audio.src = body.url;
+          if (body.duration) content.appendChild(document.createTextNode("🎤 " + body.duration + "s  "));
+          content.appendChild(audio);
+        }
+        break;
+      case "video":
+        if (body.url) {
+          let vid = document.createElement("video");
+          vid.controls = true;
+          vid.src = body.url;
+          vid.poster = body.thumbnail || "";
+          content.appendChild(vid);
+        }
+        break;
+      case "product_card":
+        {
+          let card = document.createElement("div");
+          card.className = "product-card";
+          if (body.link) {
+            card.style.cursor = "pointer";
+            card.addEventListener("click", () => window.open(body.link, "_blank"));
+          }
+          let img = document.createElement("img");
+          img.src = body.image || "";
+          img.onerror = () => { img.style.display = "none"; };
+          card.appendChild(img);
+          let info = document.createElement("div");
+          info.className = "info";
+          let title = document.createElement("div");
+          title.className = "title";
+          title.innerText = body.title || "";
+          info.appendChild(title);
+          let price = document.createElement("div");
+          price.className = "price";
+          price.innerText = body.price || "";
+          info.appendChild(price);
+          card.appendChild(info);
+          let arrow = document.createElement("div");
+          arrow.className = "arrow";
+          arrow.textContent = "›";
+          card.appendChild(arrow);
+          content.appendChild(card);
+        }
+        break;
+      case "code_snippet":
+        {
+          let pre = document.createElement("div");
+          pre.className = "code-block";
+          if (body.language) {
+            let lang = document.createElement("div");
+            lang.style.cssText = "font-size:11px;color:#86868b;margin-bottom:4px;";
+            lang.innerText = body.language;
+            pre.appendChild(lang);
+          }
+          pre.appendChild(document.createTextNode(body.code || ""));
+          content.appendChild(pre);
+        }
+        break;
+      case "location":
+        {
+          let row = document.createElement("div");
+          row.className = "location-row";
+          row.innerHTML = "📍 " + (body.name || "");
+          if (body.lat && body.lng) {
+            row.innerHTML += " (" + body.lat + ", " + body.lng + ")";
+          }
+          content.appendChild(row);
+        }
+        break;
+      case "file":
+        {
+          let row = document.createElement("div");
+          row.className = "file-row";
+          let icon = document.createElement("span");
+          icon.className = "file-icon";
+          icon.textContent = "📄";
+          row.appendChild(icon);
+          let info = document.createElement("span");
+          info.innerHTML =
+            "<strong>" + (body.filename || "file") + "</strong>" +
+            (body.size ? " (" + body.size + ")" : "");
+          row.appendChild(info);
+          if (body.url) {
+            row.style.cursor = "pointer";
+            row.addEventListener("click", () => window.open(body.url, "_blank"));
+          }
+          content.appendChild(row);
+        }
+        break;
+      default:
+        content.appendChild(document.createTextNode(body.text || JSON.stringify(body)));
+    }
+
+    bubble.appendChild(content);
+    chatlog.appendChild(bubble);
+
     if (isAtBottom) {
-      requestAnimationFrame(() => {
-        chatlog.scrollTop = chatlog.scrollHeight;
-      });
+      requestAnimationFrame(() => { chatlog.scrollTop = chatlog.scrollHeight; });
+    }
+  }
+
+  function getPreviewText(type, body) {
+    switch (type) {
+      case "text": return (body.text || "").slice(0, 50);
+      case "image": return "[图片]";
+      case "audio": return "[语音]";
+      case "video": return "[视频]";
+      case "product_card": return "[商品] " + (body.title || "");
+      case "code_snippet": return "[代码] " + (body.language || "");
+      case "location": return "[位置] " + (body.name || "");
+      case "file": return "[文件] " + (body.filename || "");
+      case "reply": return (body.text || "").slice(0, 50);
+      default: return "[消息]";
     }
   }
 

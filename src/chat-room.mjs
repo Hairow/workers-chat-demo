@@ -168,19 +168,59 @@ export class ChatRoom {
     });
   }
 
+  // Message type schemas defining required and optional fields in the `body`.
+  // 消息类型 schema，定义 `body` 中的必填和可选字段。
+  static MESSAGE_SCHEMAS = {
+    text:       { required: ["text"],                                        maxLen: { text: 2048 } },
+    image:      { required: ["url"],      optional: ["caption"],             maxLen: { caption: 512 } },
+    audio:      { required: ["url"],      optional: ["duration"],            maxLen: {} },
+    video:      { required: ["url"],      optional: ["thumbnail","duration"],maxLen: {} },
+    product_card:{required:["title","image","price"],optional:["link"],      maxLen: { title: 128, price: 32 } },
+    reply:      { required: ["text","replyTo"],                             maxLen: { text: 2048 } },
+    code_snippet:{required:["code"],      optional: ["language"],            maxLen: { code: 4096, language: 32 } },
+    location:   { required: ["lat","lng","name"],                           maxLen: { name: 128 } },
+    file:       { required: ["url","filename","size"],                      maxLen: { filename: 256 } },
+  };
+
+  // Validate a message according to its type schema.
+  // 根据类型 schema 校验消息。
+  static validateMessage(type, body) {
+    let schema = ChatRoom.MESSAGE_SCHEMAS[type];
+    if (!schema) return "Unknown message type: " + type;
+
+    // Check required fields.
+    // 校验必填字段。
+    for (let field of schema.required) {
+      if (body[field] === undefined || body[field] === null || body[field] === "") {
+        return "Missing required field '" + field + "' for type '" + type + "'";
+      }
+    }
+
+    // Build allowed fields set: required + optional.
+    // 构建允许的字段集合。
+    let allowed = new Set([...schema.required, ...(schema.optional || [])]);
+    for (let field of Object.keys(body)) {
+      if (!allowed.has(field)) {
+        return "Unexpected field '" + field + "' for type '" + type + "'";
+      }
+    }
+
+    // Check max lengths.
+    // 校验最大长度。
+    let maxLen = schema.maxLen || {};
+    for (let [field, max] of Object.entries(maxLen)) {
+      if (body[field] && typeof body[field] === "string" && body[field].length > max) {
+        return "Field '" + field + "' exceeds max length of " + max;
+      }
+    }
+
+    return null; // valid / 有效
+  }
+
   async webSocketMessage(webSocket, msg) {
     try {
       let session = this.sessions.get(webSocket);
       if (session.quit) {
-        // Whoops, when trying to send to this WebSocket in the past, it threw an exception and
-        // we marked it broken. But somehow we got another message? I guess try sending a
-        // close(), which might throw, in which case we'll try to send an error, which will also
-        // throw, and whatever, at least we won't accept the message. (This probably can't
-        // actually happen. This is defensive coding.)
-        // 糟糕，之前尝试向这个 WebSocket 发送消息时抛出了异常，我们标记它为broken。
-        // 但现在又收到了新消息？尝试发送 close()，可能会再次抛出异常，
-        // 那我们就发 error，也可能抛异常，但至少我们不会接受这条消息。
-        //（实际上这不太可能发生。这是防御性编程。）
         webSocket.close(1011, "WebSocket broken.");
         return;
       }
@@ -194,66 +234,87 @@ export class ChatRoom {
         return;
       }
 
-      // I guess we'll use JSON.
-      // 我们使用 JSON 格式。
       let data = JSON.parse(msg);
 
       if (!session.name) {
-        // The first message the client sends is the user info message with their name. Save it
-        // into their session object.
-        // 客户端发送的第一条消息是带有用户名的用户信息。把它保存到 session 对象中。
+        // The first message is always the user info with their name.
+        // 第一条消息始终是带用户名的用户信息。
         session.name = "" + (data.name || "anonymous");
-        // attach name to the webSocket so it survives hibernation
-        // 将 name 附加到 webSocket，使其在休眠时也能保留
         webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), name: session.name });
 
-        // Don't let people use ridiculously long names. (This is also enforced on the client,
-        // so if they get here they are not using the intended client.)
-        // 不允许使用过长的用户名。（客户端也做了限制，所以能走到这里说明没有使用预期客户端。）
         if (session.name.length > 32) {
           webSocket.send(JSON.stringify({ error: "Name too long." }));
           webSocket.close(1009, "Name too long.");
           return;
         }
 
-        // Deliver all the messages we queued up since the user connected.
-        // 下发用户连接后积压的所有消息。
+        // Deliver queued messages; this includes both history and roster joins.
+        // 下发积压消息（包括历史记录和在线名单）。
         session.blockedMessages.forEach(queued => {
           webSocket.send(queued);
         });
         delete session.blockedMessages;
 
-        // Broadcast to all other connections that this user has joined.
-        // 向所有连接广播该用户已加入。
         this.broadcast({ joined: session.name, ip: session.ip });
 
         webSocket.send(JSON.stringify({ ready: true }));
         return;
       }
 
-      // Construct sanitized message for storage and broadcast.
-      // 构建清洗后的消息用于存储和广播。
-      data = { name: session.name, message: "" + data.message };
+      // ── After name is set, all subsequent messages follow the typed-schema model. ──
+      // ── 名字设置完成后，所有后续消息使用类型化 schema 模型。──
 
-      // Block people from sending overly long messages. This is also enforced on the client,
-      // so to trigger this the user must be bypassing the client code.
-      // 禁止发送过长的消息。客户端也做了限制，所以能触发这个说明用户绕过了客户端代码。
-      if (data.message.length > 256) {
-        webSocket.send(JSON.stringify({ error: "Message too long." }));
+      // Determine message type from the typed-schema payload.
+      // 从类型化 schema 中获取消息类型。
+      let type = data.type;
+      let body = data.body;
+
+      if (!type || !body) {
+        webSocket.send(JSON.stringify({ error: "Missing 'type' or 'body' in message." }));
         return;
       }
 
-      // Add timestamp. Here's where this.lastTimestamp comes in -- if we receive a bunch of
-      // messages at the same time (or if the clock somehow goes backwards????), we'll assign
-      // them sequential timestamps, so at least the ordering is maintained.
-      // 添加时间戳。这里用到了 this.lastTimestamp——如果我们同时收到多条消息
-      //（或者时钟莫名倒退了？？？？），我们会分配顺序递增的时间戳，至少保持了消息顺序。
+      // Validate the message against its type schema.
+      // 根据类型 schema 校验消息。
+      let validationErr = ChatRoom.validateMessage(type, body);
+      if (validationErr) {
+        webSocket.send(JSON.stringify({ error: validationErr }));
+        return;
+      }
+
+      // Sanitize all string body fields.
+      // 清洗所有字符串 body 字段。
+      let sanitizedBody = {};
+      for (let [k, v] of Object.entries(body)) {
+        sanitizedBody[k] = typeof v === "string" ? "" + v : v;
+      }
+      body = sanitizedBody;
+
+      // For reply, enforce replyTo fields exist.
+      // 对 reply 类型，确保 replyTo 子字段存在。
+      if (type === "reply" && body.replyTo) {
+        body.replyTo.name = "" + (body.replyTo.name || "unknown");
+        body.replyTo.text = "" + (body.replyTo.text || "");
+        if (body.replyTo.text.length > 512) {
+          body.replyTo.text = body.replyTo.text.slice(0, 512);
+        }
+      }
+
+      // Add timestamp.
+      // 添加时间戳。
       data.timestamp = Math.max(Date.now(), this.lastTimestamp + 1);
       this.lastTimestamp = data.timestamp;
 
-      // Broadcast the message to all other WebSockets.
-      // 将消息广播给所有 WebSocket。
-      let dataStr = JSON.stringify(data);
+      // Assemble the final message envelope.
+      // 组装最终消息信封。
+      let envelope = {
+        type: type,
+        sender: { name: session.name, ip: session.ip },
+        timestamp: data.timestamp,
+        body: body,
+      };
+
+      let dataStr = JSON.stringify(envelope);
       this.broadcast(dataStr);
 
       // Save message.
@@ -261,21 +322,14 @@ export class ChatRoom {
       let key = new Date(data.timestamp).toISOString();
       await this.storage.put(key, dataStr);
 
-      // Keep only the last 1000 messages to prevent unbounded storage growth.
-      // Durable Object storage is limited to 1 GiB per instance.
-      // 只保留最近 1000 条消息，防止存储无限增长。每个 Durable Object 实例存储上限为 1 GiB。
+      // Keep only the last 1000 messages.
+      // 只保留最近 1000 条消息。
       let allKeys = [...(await this.storage.list()).keys()];
       if (allKeys.length > 1000) {
-        // Keys are ISO timestamps, so lexicographic sort = chronological sort.
-        // Delete all but the newest 1000.
-        // 键是 ISO 时间戳，字典序排序 = 时间顺序排序。删除除最新 1000 条外的所有数据。
         let keysToDelete = allKeys.sort().slice(0, allKeys.length - 1000);
         await Promise.all(keysToDelete.map(k => this.storage.delete(k)));
       }
     } catch (err) {
-      // Report any exceptions directly back to the client. As with our handleErrors() this
-      // probably isn't what you'd want to do in production, but it's convenient when testing.
-      // 直接将异常返回给客户端。和 handleErrors() 一样，这在生产环境中可能不太合适，但测试时很方便。
       webSocket.send(JSON.stringify({ error: err.stack }));
     }
   }
