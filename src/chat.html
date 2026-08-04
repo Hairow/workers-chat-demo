@@ -979,9 +979,24 @@
       event.preventDefault();
       if (!currentWebSocket) return;
 
+      let value = chatInput.value.trim();
+
+      // ── Reply: only triggered when user clicks "回复", not a toolbar type ──
+      if (replyingTo) {
+        if (!value) return;
+        currentWebSocket.send(JSON.stringify({
+          type: "reply",
+          body: { text: value, replyTo: replyingTo }
+        }));
+        chatInput.value = "";
+        replyingTo = null;
+        replyBar.classList.remove("show");
+        isAtBottom = true;
+        return;
+      }
+
       let type = currentMessageType;
       let body = {};
-      let value = chatInput.value.trim();
 
       switch (type) {
         case "text":
@@ -1044,27 +1059,12 @@
             size: (extraInputs["size"] && extraInputs["size"].value.trim()) || "",
           };
           break;
-        case "reply":
-          if (!replyingTo || !value) return;
-          body = { text: value, replyTo: replyingTo };
-          break;
         default:
           return;
       }
 
-      let payload = { type, body };
-      if (replyingTo) {
-        // Attach reply info; use replyingTo as the reply target.
-        payload.type = "reply";
-        payload.body = { text: value, replyTo: replyingTo };
-      }
-
-      currentWebSocket.send(JSON.stringify(payload));
+      currentWebSocket.send(JSON.stringify({ type, body }));
       chatInput.value = "";
-
-      // Clear reply state.
-      replyingTo = null;
-      replyBar.classList.remove("show");
 
       // Reset extra inputs.
       Object.values(extraInputs).forEach(inp => { if (inp && inp.value !== undefined) inp.value = ""; });
