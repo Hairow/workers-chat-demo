@@ -224,7 +224,7 @@ export class ChatRoom {
         delete session.blockedMessages;
 
         // Broadcast to all other connections that this user has joined.
-        // 向所有其他连接广播该用户已加入。
+        // 向所有连接广播该用户已加入。
         this.broadcast({ joined: session.name, ip: session.ip });
 
         webSocket.send(JSON.stringify({ ready: true }));
@@ -252,7 +252,7 @@ export class ChatRoom {
       this.lastTimestamp = data.timestamp;
 
       // Broadcast the message to all other WebSockets.
-      // 将消息广播给所有其他 WebSocket。
+      // 将消息广播给所有 WebSocket。
       let dataStr = JSON.stringify(data);
       this.broadcast(dataStr);
 
