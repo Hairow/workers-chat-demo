@@ -357,7 +357,7 @@
     </div>
 
     <!-- Reply bar -->
-    <div id="reply-bar" v-show="replyingTo">
+    <div id="reply-bar" v-if="replyingTo">
       <span>回复 {{ replyingTo.name }}: {{ replyingTo.text }}</span>
       <span class="cancel-reply" @click="replyingTo = null">✕</span>
     </div>
