@@ -291,14 +291,7 @@
 
     #upload-btn {
       display: none;
-    }
-
-    #upload-btn:hover {
-      transform: scale(1.1);
-    }
-
-    #upload-btn:active {
-      transform: scale(0.95);
+      margin-left: auto;
     }
 
     #upload-btn.uploading {
@@ -584,12 +577,6 @@
       max-height: 240px;
       border-radius: 8px;
       display: block;
-    }
-
-    .msg-bubble .content img.msg-image+.caption {
-      margin-top: 4px;
-      font-size: 13px;
-      color: var(--text-secondary);
     }
 
     .msg-bubble .content audio {
@@ -904,15 +891,15 @@
     });
 
     // ── Message type toolbar ────────────────────────────────────
-    msgToolbar.querySelectorAll("button").forEach(btn => {
+    msgToolbar.querySelectorAll("button[data-type]").forEach(btn => {
       btn.addEventListener("click", () => {
         // Update active button.
-        msgToolbar.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+        msgToolbar.querySelectorAll("button[data-type]").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         currentMessageType = btn.dataset.type;
 
         // Show/hide upload button only for media types.
-        uploadBtn.style.display = ["image", "audio", "video"].includes(currentMessageType) ? "" : "none";
+        uploadBtn.style.display = ["image", "audio", "video"].includes(currentMessageType) ? "inline-flex" : "none";
 
         // Show/hide extra input fields based on type.
         updateExtraInputs(currentMessageType);
@@ -953,7 +940,7 @@
       extraInputs = {};
 
       let fields = {
-        image: [{ name: "caption", placeholder: "标注（可选）" }],
+        image: [],
         audio: [],
         video: [{ name: "thumbnail", placeholder: "封面图 URL（可选）" }],
         product_card: [{ name: "image", placeholder: "图片 URL" }, { name: "price", placeholder: "价格" }, { name: "link", placeholder: "链接（可选）" }],
@@ -1008,9 +995,6 @@
         case "image":
           if (!window._lastUpload || window._lastUpload.type !== "image") return;
           body = buildUploadBody();
-          if (extraInputs["caption"] && extraInputs["caption"].value.trim()) {
-            body.caption = extraInputs["caption"].value.trim();
-          }
           break;
         case "audio":
           if (!window._lastUpload || window._lastUpload.type !== "audio") return;
@@ -1296,7 +1280,7 @@
         //
         // 消息格式示例:
         // { type: "text", body: { text: "hello" }, sender: { name: "Alice" }, timestamp: 1234567890 }
-        // { type: "image", body: { uploadId: "abc-123", caption: "描述", filename: "photo.jpg", mimeType: "image/jpeg", size: 102400 }, sender: { name: "Bob" }, timestamp: 1234567890 }
+        // { type: "image", body: { uploadId: "abc-123", filename: "photo.jpg", mimeType: "image/jpeg", size: 102400 }, sender: { name: "Bob" }, timestamp: 1234567890 }
         // { type: "audio", body: { uploadId: "abc-456", filename: "recording.mp3", mimeType: "audio/mpeg", size: 512000, duration: 60 }, sender: { name: "Carol" }, timestamp: 1234567890 }
         // { type: "video", body: { uploadId: "abc-789", thumbnail: "https://...", filename: "clip.mp4", mimeType: "video/mp4", size: 2048000, duration: 120 }, sender: { name: "Dave" }, timestamp: 1234567890 }
         // { type: "product_card", body: { title: "xxx", image: "https://...", price: "99.00", link: "https://..." }, sender: "...", timestamp: ... }
@@ -1386,15 +1370,9 @@
           let img = document.createElement("img");
           img.className = "msg-image";
           img.src = imgUrl;
-          img.alt = body.caption || "";
+          img.alt = body.filename || "";
           img.onerror = () => { img.alt = "[图片加载失败]"; img.style.display = "none"; };
           content.appendChild(img);
-          if (body.caption) {
-            let cap = document.createElement("div");
-            cap.className = "caption";
-            cap.innerText = body.caption;
-            content.appendChild(cap);
-          }
         }
         break;
       }

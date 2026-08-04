@@ -174,7 +174,7 @@ export class ChatRoom {
   // replyTo 是所有类型的可选字段，允许任意消息引用另一条消息。
   static MESSAGE_SCHEMAS = {
     text: { required: ["text"], optional: ["replyTo"], maxLen: { text: 2048 } },
-    image: { required: ["uploadId"], optional: ["caption", "filename", "mimeType", "size", "replyTo"], maxLen: { caption: 512, filename: 256 } },
+    image: { required: ["uploadId"], optional: ["filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     audio: { required: ["uploadId"], optional: ["duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     video: { required: ["uploadId"], optional: ["thumbnail", "duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     product_card: { required: ["title", "image", "price"], optional: ["link", "replyTo"], maxLen: { title: 128, price: 32 } },
