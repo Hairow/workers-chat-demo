@@ -96,6 +96,24 @@
       height: calc(100vh - 88px - 5em);
     }
 
+    /* Push up chat area when extra input fields are visible. */
+    body.has-extra-inputs #chatlog,
+    body.has-extra-inputs #roster {
+      bottom: 128px;
+    }
+
+    body.has-extra-inputs #spacer {
+      height: calc(100vh - 128px - 5em);
+    }
+
+    body.has-extra-inputs #reply-bar {
+      bottom: 128px;
+    }
+
+    body.has-extra-inputs #msg-toolbar {
+      bottom: 92px;
+    }
+
     /* ── Roster (online users) ────────────────────────────────── */
     #roster {
       position: fixed;
@@ -960,7 +978,9 @@
         });
       }
 
-      extraContainer.style.display = type === "text" ? "none" : "flex";
+      let visible = type !== "text";
+      extraContainer.style.display = visible ? "flex" : "none";
+      document.body.classList.toggle("has-extra-inputs", visible);
     }
 
     // ── Reply bar handler ───────────────────────────────────────
