@@ -910,7 +910,8 @@
         // Show/hide extra input fields based on type.
         updateExtraInputs(currentMessageType);
         chatInput.placeholder = getPlaceholder(currentMessageType);
-        chatInput.focus();
+        // Only auto-focus main input for text type; for others let user fill extra fields first.
+        if (currentMessageType === "text") chatInput.focus();
       });
     });
 
@@ -1094,13 +1095,7 @@
     });
 
     chatInput.focus();
-    document.body.addEventListener("click", event => {
-      // If the user clicked somewhere in the window without selecting any text, focus the chat
-      // input.
-      if (window.getSelection().toString() == "") {
-        chatInput.focus();
-      }
-    });
+
 
     // Mobile roster toggle ────────────────────────────────────────
     rosterToggle.addEventListener("click", () => {
