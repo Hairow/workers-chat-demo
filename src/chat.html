@@ -1090,6 +1090,7 @@
       // Clear upload state for media types after sending.
       if (["image", "audio", "video"].includes(type)) {
         window._lastUpload = null;
+        fileInput.value = "";
         chatInput.placeholder = getPlaceholder(type);
         resetUploadUI();
       }
