@@ -488,6 +488,9 @@
       font-weight: 600;
       color: var(--accent);
     }
+    .msg-bubble .sender.self {
+      color: #e53e3e;
+    }
 
     .msg-bubble .content {
       padding: 8px 12px;
@@ -687,7 +690,7 @@
 
         <div v-for="(msg, i) in chatMessages" :key="'cm-' + i" class="msg-bubble" :data-ts="msg.ts">
           <div class="msg-header">
-            <span class="sender">{{ msg.name }}</span>
+            <span class="sender" :class="{ self: msg.name === username }">{{ msg.name }}</span>
             <span class="msg-time">{{ formatTime(msg.ts) }}</span>
           </div>
 
