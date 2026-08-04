@@ -1091,9 +1091,7 @@
       if (["image", "audio", "video"].includes(type)) {
         window._lastUpload = null;
         chatInput.placeholder = getPlaceholder(type);
-        clearUploadBtn.style.display = "none";
-        clearUploadBtn.disabled = true;
-        uploadBtn.style.display = "inline-flex";
+        resetUploadUI();
       }
 
       // Reset reply state if user was replying.
@@ -1142,6 +1140,13 @@
     let clearUploadBtn = document.querySelector("#clear-upload-btn");
     let uploadLoading = document.querySelector("#upload-loading");
 
+    function resetUploadUI() {
+      uploadLoading.style.display = "none";
+      clearUploadBtn.style.display = "none";
+      clearUploadBtn.disabled = true;
+      uploadBtn.style.display = "inline-flex";
+    }
+
     uploadBtn.addEventListener("click", () => {
       fileInput.value = ""; // Allow re-uploading the same file.
       _fileDialogOpen = true;
@@ -1156,8 +1161,7 @@
     let _fileDialogOpen = false;
     window.addEventListener("focus", () => {
       if (_fileDialogOpen && fileInput.files.length === 0 && !window._lastUpload) {
-        clearUploadBtn.style.display = "none";
-        uploadBtn.style.display = "inline-flex";
+        resetUploadUI();
       }
       _fileDialogOpen = false;
     });
@@ -1170,25 +1174,27 @@
       window._lastUpload = null;
       fileInput.value = "";
       chatInput.value = "";
-      uploadLoading.style.display = "none";
-      clearUploadBtn.style.display = "none";
-      clearUploadBtn.disabled = false;
-      uploadBtn.style.display = "inline-flex";
+      resetUploadUI();
     });
 
     fileInput.addEventListener("change", async () => {
       _fileDialogOpen = false;
       let file = fileInput.files[0];
-      if (!file) return;
+      if (!file) {
+        resetUploadUI();
+        return;
+      }
 
       // Validate locally.
       let MAX_SIZE = 20 * 1024 * 1024;
       if (!file.type.startsWith("image/") && !file.type.startsWith("video/") && !file.type.startsWith("audio/")) {
         alert("只支持图片、视频和音频文件");
+        resetUploadUI();
         return;
       }
       if (file.size > MAX_SIZE) {
         alert("文件大小不能超过 20 MB");
+        resetUploadUI();
         return;
       }
 
@@ -1226,8 +1232,9 @@
         // Store last upload result for building message body on submit.
         window._lastUpload = result;
 
-        // Enable clear button, hide loading after upload completes.
+        // Hide loading, show enabled clear button, hide upload button.
         uploadLoading.style.display = "none";
+        uploadBtn.style.display = "none";
         clearUploadBtn.style.display = "inline-flex";
         clearUploadBtn.disabled = false;
 
@@ -1236,10 +1243,7 @@
         alert("上传失败: " + err.message);
         // Reset UI on error.
         window._lastUpload = null;
-        uploadLoading.style.display = "none";
-        clearUploadBtn.style.display = "none";
-        clearUploadBtn.disabled = true;
-        uploadBtn.style.display = "inline-flex";
+        resetUploadUI();
       } finally {
         uploadBtn.classList.remove("uploading");
         uploadBtn.title = originalTitle;
