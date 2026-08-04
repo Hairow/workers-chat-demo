@@ -1148,14 +1148,7 @@
         // Store last upload result for building message body on submit.
         window._lastUpload = result;
 
-        // Switch toolbar to match file type.
-        let type = result.type; // "image", "video", or "audio"
-        let btn = msgToolbar.querySelector(`button[data-type="${type}"]`);
-        if (btn) btn.click();
 
-        // Show filename in input as hint, clear on type.
-        chatInput.value = result.filename || "";
-        chatInput.focus();
       } catch (err) {
         alert("上传失败: " + err.message);
       } finally {
