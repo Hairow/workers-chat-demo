@@ -1162,7 +1162,7 @@
 
         let result = await resp.json();
         // Build the access URL.
-        let fileUrl = `${location.protocol}//${location.host}/api/file/${result.id}`;
+        let fileUrl = `${location.protocol}//${location.host}/api/file/${result.id}/blob`;
 
         // Insert URL into chat input, switch to correct type.
         let type = result.type; // "image" or "video"

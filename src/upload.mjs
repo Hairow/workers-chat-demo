@@ -78,18 +78,31 @@ export async function handleUpload(request, env) {
   return Response.json({ id, type, mimeType, filename: file.name, size: file.size });
 }
 
-/** Handle GET /api/file/<id> — serve the binary file content. */
-export async function handleFileDownload(path, request, env) {
-  let id = path[1];
+/** Shared helper — load upload metadata by id. */
+async function getMetadata(id, env) {
+  let metaStr = await env.CHAT_ROOMS.get(`upload:${id}`);
+  if (!metaStr) return null;
+  return JSON.parse(metaStr);
+}
+
+/** Handle GET /api/file/<id>/meta — return JSON metadata. */
+export async function handleFileMeta(id, env) {
   if (!id) return new Response("Missing file id", { status: 400 });
 
-  let metaKey = `upload:${id}`;
-  let metaStr = await env.CHAT_ROOMS.get(metaKey);
-  if (!metaStr) return new Response("File not found", { status: 404 });
+  let metadata = await getMetadata(id, env);
+  if (!metadata) return new Response("File not found", { status: 404 });
 
-  let metadata = JSON.parse(metaStr);
+  return Response.json(metadata);
+}
+
+/** Handle GET /api/file/<id>/blob — serve the binary file content. */
+export async function handleFileBlob(id, request, env) {
+  if (!id) return new Response("Missing file id", { status: 400 });
+
+  let metadata = await getMetadata(id, env);
+  if (!metadata) return new Response("File not found", { status: 404 });
+
   let blobKey = metadata.contentKey;
-
   let arrayBuffer = await env.CHAT_ROOMS.get(blobKey, { type: "arrayBuffer" });
   if (!arrayBuffer) return new Response("File content not found", { status: 404 });
 

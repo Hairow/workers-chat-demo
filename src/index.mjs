@@ -79,7 +79,7 @@
 
 import HTML from "./chat.html";
 import { handleErrors } from "./utils.mjs";
-import { handleUpload, handleFileDownload } from "./upload.mjs";
+import { handleUpload, handleFileMeta, handleFileBlob } from "./upload.mjs";
 
 // Re-export Durable Object classes so that Cloudflare can discover them.
 // 重新导出 Durable Object 类，以便 Cloudflare 可以发现它们。
@@ -133,10 +133,18 @@ async function handleApiRequest(path, request, env) {
 
   switch (path[0]) {
     case "upload":
+      // POST /api/upload — multipart form upload.
       return handleUpload(request, env);
 
-    case "file":
-      return handleFileDownload(path.slice(1), request, env);
+    case "file": {
+      // GET /api/file/<id>/meta — return JSON metadata.
+      // GET /api/file/<id>/blob — serve binary content.
+      let id = path[1];
+      let action = path[2];
+      if (action === "meta") return handleFileMeta(id, env);
+      if (action === "blob") return handleFileBlob(id, request, env);
+      return new Response("Not found", { status: 404 });
+    }
 
     case "rooms": {
       // GET /api/rooms — list all active rooms from KV.
