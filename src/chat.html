@@ -289,6 +289,39 @@
       color: var(--text-secondary);
     }
 
+    #upload-btn {
+      position: fixed;
+      bottom: 8px;
+      right: 8px;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      font-size: 18px;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+      transition: transform var(--transition), opacity var(--transition);
+    }
+
+    #upload-btn:hover {
+      transform: scale(1.1);
+    }
+
+    #upload-btn:active {
+      transform: scale(0.95);
+    }
+
+    #upload-btn.uploading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
     #chatroom::before {
       z-index: 1;
       display: flex;
@@ -750,6 +783,8 @@
     </div>
     <div id="reply-bar"><span class="reply-text"></span><span class="cancel-reply">✕</span></div>
     <input id="chat-input">
+    <input type="file" id="file-input" accept="image/*,video/*,audio/*" style="display:none">
+    <button id="upload-btn" type="button" title="上传图片/视频">📤</button>
   </form>
 </body>
 
@@ -1096,6 +1131,62 @@
 
     chatInput.focus();
 
+    // ── File upload ──────────────────────────────────────────────
+    let fileInput = document.querySelector("#file-input");
+    let uploadBtn = document.querySelector("#upload-btn");
+
+    uploadBtn.addEventListener("click", () => {
+      fileInput.value = ""; // Allow re-uploading the same file.
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", async () => {
+      let file = fileInput.files[0];
+      if (!file) return;
+
+      // Validate locally.
+      let MAX_SIZE = 20 * 1024 * 1024;
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/") && !file.type.startsWith("audio/")) {
+        alert("只支持图片、视频和音频文件");
+        return;
+      }
+      if (file.size > MAX_SIZE) {
+        alert("文件大小不能超过 20 MB");
+        return;
+      }
+
+      uploadBtn.classList.add("uploading");
+      let originalTitle = uploadBtn.title;
+      uploadBtn.title = "上传中...";
+
+      try {
+        let formData = new FormData();
+        formData.append("file", file);
+
+        let resp = await fetch("/api/upload", { method: "POST", body: formData });
+        if (!resp.ok) {
+          let text = await resp.text();
+          throw new Error(text || "上传失败");
+        }
+
+        let result = await resp.json();
+        // Build the access URL.
+        let fileUrl = `${location.protocol}//${location.host}/api/file/${result.id}`;
+
+        // Insert URL into chat input, switch to correct type.
+        let type = result.type; // "image" or "video"
+        let btn = msgToolbar.querySelector(`button[data-type="${type}"]`);
+        if (btn) btn.click(); // Switch toolbar to match file type.
+
+        chatInput.value = fileUrl;
+        chatInput.focus();
+      } catch (err) {
+        alert("上传失败: " + err.message);
+      } finally {
+        uploadBtn.classList.remove("uploading");
+        uploadBtn.title = originalTitle;
+      }
+    });
 
     // Mobile roster toggle ────────────────────────────────────────
     rosterToggle.addEventListener("click", () => {

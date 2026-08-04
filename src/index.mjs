@@ -79,6 +79,7 @@
 
 import HTML from "./chat.html";
 import { handleErrors } from "./utils.mjs";
+import { handleUpload, handleFileDownload } from "./upload.mjs";
 
 // Re-export Durable Object classes so that Cloudflare can discover them.
 // 重新导出 Durable Object 类，以便 Cloudflare 可以发现它们。
@@ -131,6 +132,12 @@ async function handleApiRequest(path, request, env) {
   // 收到 API 请求。根据路径路由请求。
 
   switch (path[0]) {
+    case "upload":
+      return handleUpload(request, env);
+
+    case "file":
+      return handleFileDownload(path.slice(1), request, env);
+
     case "rooms": {
       // GET /api/rooms — list all active rooms from KV.
       // Key format: room:<id> (private) or room:<id>-<name> (public).
