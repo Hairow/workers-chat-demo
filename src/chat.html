@@ -290,27 +290,7 @@
     }
 
     #upload-btn {
-      position: fixed;
-      bottom: 8px;
-      right: 8px;
-      width: 36px;
-      height: 36px;
-      padding: 0;
-      font-size: 18px;
-      border: none;
-      border-radius: 50%;
-      background: var(--accent);
-      color: #fff;
-      cursor: pointer;
       display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 3;
-      transition: transform var(--transition), opacity var(--transition);
-    }
-
-    #upload-btn.visible {
-      display: flex;
     }
 
     #upload-btn:hover {
@@ -769,11 +749,11 @@
       <button data-type="product_card" title="商品卡片">🛒</button>
       <button data-type="code_snippet" title="代码片段">&lt;/&gt;</button>
       <button data-type="location" title="位置">📍</button>
+      <button id="upload-btn" type="button" title="上传文件" style="display:none">📤</button>
     </div>
     <div id="reply-bar"><span class="reply-text"></span><span class="cancel-reply">✕</span></div>
     <input id="chat-input">
     <input type="file" id="file-input" accept="image/*,video/*,audio/*" style="display:none">
-    <button id="upload-btn" type="button" title="上传图片/视频">📤</button>
   </form>
 </body>
 
@@ -932,7 +912,7 @@
         currentMessageType = btn.dataset.type;
 
         // Show/hide upload button only for media types.
-        uploadBtn.classList.toggle("visible", ["image", "audio", "video"].includes(currentMessageType));
+        uploadBtn.style.display = ["image", "audio", "video"].includes(currentMessageType) ? "" : "none";
 
         // Show/hide extra input fields based on type.
         updateExtraInputs(currentMessageType);
