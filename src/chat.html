@@ -1032,6 +1032,7 @@
           }
           break;
         case "location":
+          if (!value) return;
           body = {
             name: value,
             lat: parseFloat(extraInputs["lat"] ? extraInputs["lat"].value : 0) || 0,
@@ -1039,6 +1040,7 @@
           };
           break;
         case "file":
+          if (!value) return;
           body = {
             filename: value,
             url: (extraInputs["url"] && extraInputs["url"].value.trim()) || "",
