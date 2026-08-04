@@ -994,11 +994,6 @@
       let type = currentMessageType;
       let body = {};
 
-      // If user clicked "回复", attach replyTo to any message type.
-      if (replyingTo) {
-        body.replyTo = replyingTo;
-      }
-
       switch (type) {
         case "text":
           if (!value) return;
@@ -1064,6 +1059,11 @@
           break;
         default:
           return;
+      }
+
+      // If user clicked "回复", attach replyTo after body is fully built.
+      if (replyingTo) {
+        body.replyTo = replyingTo;
       }
 
       currentWebSocket.send(JSON.stringify({ type, body }));
