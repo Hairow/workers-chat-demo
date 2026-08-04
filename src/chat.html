@@ -357,6 +357,10 @@
       margin-left: 0 !important;
     }
 
+    .msg-time {
+      font-size: 11px; color: var(--text-secondary); margin-left: 6px;
+    }
+
     /* ── Image preview overlay ────────────────── */
     .img-overlay {
       display: none;
@@ -681,7 +685,8 @@
         <div id="spacer"></div>
 
         <div v-for="(msg, i) in chatMessages" :key="'cm-' + i" class="msg-bubble" :data-ts="msg.ts">
-          <span class="sender">{{ msg.name }} </span>
+          <span class="sender">{{ msg.name }}</span>
+          <span class="msg-time">{{ formatTime(msg.ts) }}</span>
           <button type="button" class="reply-btn" @click="startReply(msg)">回复</button>
           <div class="content">
             <div v-if="msg.body.replyTo" class="reply-preview">
@@ -1199,6 +1204,16 @@
           if (this.chatInputText.length > max) {
             this.chatInputText = this.chatInputText.slice(0, max);
           }
+        },
+        formatTime: function (ts) {
+          if (!ts) return '';
+          var d = new Date(ts);
+          var y = d.getFullYear();
+          var mo = (d.getMonth() + 1).toString().padStart(2, '0');
+          var da = d.getDate().toString().padStart(2, '0');
+          var h = d.getHours().toString().padStart(2, '0');
+          var m = d.getMinutes().toString().padStart(2, '0');
+          return y + '-' + mo + '-' + da + ' ' + h + ':' + m;
         },
       },
       mounted: function () {
