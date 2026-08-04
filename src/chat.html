@@ -360,11 +360,18 @@
     .msg-header {
       white-space: nowrap;
     }
+
     .msg-time {
-      font-size: 11px; color: var(--text-secondary); margin-left: 6px;
-      opacity: 0; transition: opacity .15s;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-left: 6px;
+      opacity: 0;
+      transition: opacity .15s;
     }
-    .msg-header:hover .msg-time { opacity: 1; }
+
+    .msg-header:hover .msg-time {
+      opacity: 1;
+    }
 
     /* ── Image preview overlay ────────────────── */
     .img-overlay {
@@ -694,7 +701,7 @@
             <span class="sender">{{ msg.name }}</span>
             <span class="msg-time">{{ formatTime(msg.ts) }}</span>
           </div>
-          <button type="button" class="reply-btn" @click="startReply(msg)">回复</button>
+
           <div class="content">
             <div v-if="msg.body.replyTo" class="reply-preview">
               <span class="replied-name">{{ msg.body.replyTo.name }}</span>
@@ -745,6 +752,7 @@
 
             <template v-else>{{ msg.body.text || JSON.stringify(msg.body) }}</template>
           </div>
+          <button type="button" class="reply-btn" @click="startReply(msg)">回复</button>
         </div>
 
 
