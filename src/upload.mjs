@@ -54,6 +54,9 @@ export async function handleUpload(request, env) {
             : mimeType.startsWith("video/") ? "video"
             : "audio";
 
+  // Optional duration (seconds) — only meaningful for audio / video.
+  let duration = parseFloat(formData.get("duration")) || 0;
+
   // Build metadata JSON.
   let metadata = {
     type,
@@ -62,6 +65,7 @@ export async function handleUpload(request, env) {
     contentKey: blobKey,
     size: file.size,
     description: "",
+    duration: type !== "image" ? duration : 0,
     uploadedAt: Date.now(),
   };
 

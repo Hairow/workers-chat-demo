@@ -1159,9 +1159,24 @@
       let originalTitle = uploadBtn.title;
       uploadBtn.title = "上传中...";
 
+      // Extract duration for audio / video.
+      let duration = 0;
+      if (file.type.startsWith("video/") || file.type.startsWith("audio/")) {
+        try {
+          duration = await new Promise((resolve) => {
+            let el = document.createElement(file.type.startsWith("video/") ? "video" : "audio");
+            el.preload = "metadata";
+            el.onloadedmetadata = () => resolve(el.duration || 0);
+            el.onerror = () => resolve(0);
+            el.src = URL.createObjectURL(file);
+          });
+        } catch { duration = 0; }
+      }
+
       try {
         let formData = new FormData();
         formData.append("file", file);
+        if (duration > 0) formData.append("duration", duration);
 
         let resp = await fetch("/api/upload", { method: "POST", body: formData });
         if (!resp.ok) {
