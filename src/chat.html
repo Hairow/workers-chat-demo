@@ -1,19 +1,7 @@
 <!DOCTYPE html>
-<!--
-  THIS IS NOT THE INTERESTING FILE
-
-  This is just some UI code. There's nothing interesting and unique in this file. The interesting
-  thing about this demo is the server side, which is in chat.mjs.
-
-  WARNING: This was written by a systems engineer, not a web developer. It's probably bad.
--->
-
 <html>
-
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <!--===================================================================================-->
-  <!-- Inline style to avoid an extra round trip before the page can render. -->
   <style type="text/css">
     :root {
       --bg: #f5f5f7;
@@ -31,9 +19,7 @@
       --transition: 0.2s cubic-bezier(.25, .1, .25, 1);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -43,1544 +29,798 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Chat area ────────────────────────────────────────────── */
+    p { margin: 0; }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #c1c1c6; border-radius: 4px; }
+
+    /* ── Chatlog ──────────────────────────────── */
     #chatlog {
-      position: fixed;
-      top: 0;
-      bottom: 88px;
-      left: 0;
-      right: 220px;
-      overflow-y: auto;
-      padding: 16px 20px;
-      overflow-wrap: break-word;
-      scroll-behavior: smooth;
+      position: fixed; top: 0; bottom: 88px; left: 0; right: 220px;
+      overflow-y: auto; padding: 16px 20px; scroll-behavior: smooth;
     }
+    [v-cloak] { display: none; }
 
-    #chatlog span.username {
-      font-weight: 600;
-      color: var(--accent);
-    }
-
-    #chatlog p {
-      margin: 0 0 6px;
-      padding: 6px 12px;
-      border-radius: 8px;
-      line-height: 1.5;
-      font-size: 14px;
-      animation: msgIn 0.25s ease-out;
-    }
-
-    #chatlog p:has(span.username) {
-      background: none;
-    }
-
-    #chatlog p:not(:has(span.username)) {
-      color: var(--text-secondary);
-      font-size: 13px;
-      font-style: italic;
-    }
-
-    @keyframes msgIn {
-      from {
-        opacity: 0;
-        transform: translateY(8px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    #spacer {
-      height: calc(100vh - 88px - 5em);
-    }
-
-    /* Push up chat area when extra input fields are visible. */
-    body.has-extra-inputs #chatlog,
-    body.has-extra-inputs #roster {
-      bottom: 128px;
-    }
-
-    body.has-extra-inputs #spacer {
-      height: calc(100vh - 128px - 5em);
-    }
-
-    body.has-extra-inputs #reply-bar {
-      bottom: 128px;
-    }
-
-    /* ── Roster (online users) ────────────────────────────────── */
+    /* ── Roster ───────────────────────────────── */
     #roster {
-      position: fixed;
-      right: 0;
-      top: 0;
-      bottom: 88px;
-      width: 220px;
-      padding: 16px;
-      background: var(--surface);
-      border-left: 1px solid var(--border);
-      overflow-y: auto;
-      font-weight: 500;
-      font-size: 13px;
-      color: var(--text-primary);
+      position: fixed; right: 0; top: 0; bottom: 88px; width: 220px;
+      padding: 16px; background: var(--surface); border-left: 1px solid var(--border);
+      overflow-y: auto; font-weight: 500; font-size: 13px;
     }
-
     #roster::before {
-      content: "在线用户";
-      display: block;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-secondary);
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 10px;
+      content: "在线用户"; display: block; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);
+      padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
     }
 
-    #roster p {
-      padding: 5px 8px;
-      border-radius: 6px;
-      margin: 2px 0;
-      animation: msgIn 0.3s ease-out;
-    }
-
-    p {
-      margin: 0;
-    }
-
-    ::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: #c1c1c6;
-      border-radius: 4px;
-    }
-
-    @media(max-width:600px) {
-      #chatlog {
-        right: 0;
-      }
-
-      /* Roster toggle button */
-      #roster-toggle {
-        display: flex;
-        position: fixed;
-        z-index: 4;
-        top: 10px;
-        right: 10px;
-        height: 32px;
-        padding: 0 12px;
-        align-items: center;
-        gap: 6px;
-        font-size: 13px;
-        font-family: inherit;
-        font-weight: 500;
-        color: var(--text-secondary);
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        cursor: pointer;
-        box-shadow: var(--shadow-sm);
-        transition: background var(--transition);
-      }
-
-      #roster-toggle:hover {
-        background: var(--bg);
-      }
-
-      #roster-toggle .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #34c759;
-      }
-
-      /* Backdrop */
-      #roster-backdrop {
-        display: none;
-        position: fixed;
-        z-index: 5;
-        inset: 0;
-        background: rgba(0, 0, 0, .25);
-      }
-
-      body.roster-open #roster-backdrop {
-        display: block;
-      }
-
-      /* Roster as slide-in panel */
-      #roster {
-        position: fixed;
-        z-index: 6;
-        top: 0;
-        bottom: 0;
-        right: 0;
-        width: 240px;
-        padding: 56px 16px 16px;
-        background: var(--surface);
-        border-left: 1px solid var(--border);
-        box-shadow: var(--shadow-lg);
-        overflow-y: auto;
-        transform: translateX(100%);
-        transition: transform 0.25s cubic-bezier(.4, 0, .2, 1);
-      }
-
-      body.roster-open #roster {
-        transform: translateX(0);
-      }
-
-      #roster::after {
-        content: "\u2715";
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        width: 28px;
-        height: 28px;
-        line-height: 28px;
-        text-align: center;
-        font-size: 14px;
-        color: var(--text-secondary);
-        cursor: pointer;
-        border-radius: 50%;
-        transition: background var(--transition);
-      }
-
-      #roster::after:hover {
-        background: var(--bg);
-      }
-    }
-
-    @media(min-width:601px) {
-
-      #roster-toggle,
-      #roster-backdrop {
-        display: none !important;
-      }
-    }
-
-    /* ── Input bar ────────────────────────────────────────────── */
+    /* ── Input ────────────────────────────────── */
     #chat-input {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      width: 100%;
-      height: 52px;
-      padding: 8px 16px 8px 42px;
-      font-size: 15px;
-      font-family: inherit;
-      color: var(--text-primary);
-      background: var(--surface);
-      border: none;
-      border-top: 1px solid var(--border);
-      outline: none;
+      position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: 52px;
+      padding: 8px 16px 8px 42px; font-size: 15px; font-family: inherit;
+      color: var(--text-primary); background: var(--surface);
+      border: none; border-top: 1px solid var(--border); outline: none;
       transition: box-shadow var(--transition), border-color var(--transition);
     }
-
-    #chat-input:focus {
-      box-shadow: 0 -1px 0 var(--accent);
-      border-color: var(--accent);
-    }
-
-    #chat-input::placeholder {
-      color: var(--text-secondary);
-    }
-
-    #upload-btn,
-    #clear-upload-btn {
-      display: none;
-      margin-left: auto;
-    }
-
-    #upload-loading {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      font-size: 16px;
-      margin-left: 4px;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    #upload-btn.uploading,
-    #clear-upload-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    #chat-input:focus { box-shadow: 0 -1px 0 var(--accent); border-color: var(--accent); }
+    #chat-input::placeholder { color: var(--text-secondary); }
 
     #chatroom::before {
-      z-index: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      content: ">";
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 42px;
-      height: 52px;
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--accent);
-      pointer-events: none;
+      z-index: 1; display: flex; align-items: center; justify-content: center;
+      content: ">"; position: fixed; bottom: 0; left: 0; width: 42px; height: 52px;
+      font-size: 18px; font-weight: 600; color: var(--accent); pointer-events: none;
     }
 
-    /* ── Name chooser ─────────────────────────────────────────── */
-    #name-form {
-      position: fixed;
-      z-index: 3;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg);
-      backdrop-filter: blur(20px);
+    /* ── Name chooser ─────────────────────────── */
+    .modal-overlay {
+      position: fixed; z-index: 3; inset: 0; display: flex;
+      flex-direction: column; align-items: center; justify-content: center;
+      background: var(--bg); backdrop-filter: blur(20px);
     }
-
-    #name-input {
-      width: 260px;
-      height: 52px;
-      padding: 0 16px;
-      font-size: 20px;
-      font-family: inherit;
-      text-align: center;
-      color: var(--text-primary);
-      background: var(--surface);
-      border: 2px solid var(--border);
-      border-radius: var(--radius);
-      outline: none;
+    .modal-input {
+      width: 260px; height: 52px; padding: 0 16px; font-size: 20px;
+      font-family: inherit; text-align: center; color: var(--text-primary);
+      background: var(--surface); border: 2px solid var(--border);
+      border-radius: var(--radius); outline: none;
       transition: border-color var(--transition), box-shadow var(--transition);
     }
+    .modal-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(0, 113, 227, .15); }
+    .modal-input::placeholder { color: var(--text-secondary); }
 
-    #name-input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 4px rgba(0, 113, 227, .15);
-    }
-
-    #name-input::placeholder {
-      color: var(--text-secondary);
-    }
-
-    #name-form p {
-      margin-top: 20px;
-      max-width: 360px;
-      padding: 0 16px;
-      text-align: center;
-      font-size: 13px;
-      color: var(--text-secondary);
-      line-height: 1.6;
-    }
-
-    #name-form p a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-
-    #name-form p a:hover {
-      text-decoration: underline;
-    }
-
-    /* ── Room chooser ─────────────────────────────────────────── */
-    #room-form {
-      position: fixed;
-      z-index: 2;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      background: var(--bg);
-      text-align: center;
-    }
-
-    #room-form p {
-      font-size: 16px;
-      color: var(--text-primary);
-      margin: 0;
-    }
-
+    /* ── Room chooser ─────────────────────────── */
+    .room-body { gap: 16px; text-align: center; }
+    .room-body p { font-size: 16px; margin: 0; }
     #room-name {
-      width: 260px;
-      height: 48px;
-      padding: 0 14px;
-      font-size: 16px;
-      font-family: inherit;
-      color: var(--text-primary);
-      background: var(--surface);
-      border: 2px solid var(--border);
-      border-radius: var(--radius);
-      outline: none;
+      width: 260px; height: 48px; padding: 0 14px; font-size: 16px;
+      font-family: inherit; color: var(--text-primary); background: var(--surface);
+      border: 2px solid var(--border); border-radius: var(--radius); outline: none;
       transition: border-color var(--transition), box-shadow var(--transition);
     }
+    #room-name:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(0, 113, 227, .15); }
+    #room-name::placeholder { color: var(--text-secondary); }
 
-    #room-name:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 4px rgba(0, 113, 227, .15);
-    }
-
-    #room-name::placeholder {
-      color: var(--text-secondary);
-    }
-
-    #room-form button {
-      height: 48px;
-      padding: 0 28px;
-      font-size: 16px;
-      font-family: inherit;
-      font-weight: 500;
-      color: #fff;
-      background: var(--accent);
-      border: none;
-      border-radius: var(--radius);
-      cursor: pointer;
+    .btn {
+      height: 48px; padding: 0 28px; font-size: 16px; font-family: inherit;
+      font-weight: 500; color: #fff; background: var(--accent); border: none;
+      border-radius: var(--radius); cursor: pointer;
       transition: background var(--transition), transform 0.1s ease;
     }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    #room-form button:hover {
-      background: var(--accent-hover);
+    #go-public { min-width: 80px; }
+    #go-private { min-width: 260px; }
+    @media (max-width:500px) {
+      .modal-input, #room-name { width: 220px; }
+      #go-private { min-width: 220px; }
     }
 
-    #room-form button:active {
-      transform: scale(0.97);
-    }
-
-    #room-form button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    #room-form>*+* {
-      margin: 0;
-    }
-
-    #go-public {
-      min-width: 80px;
-    }
-
-    #go-private {
-      min-width: 260px;
-    }
-
-    @media(max-width:500px) {
-
-      #name-input,
-      #room-name {
-        width: 220px;
-      }
-
-      #go-private {
-        min-width: 220px;
-      }
-    }
-
-    /* ── Message type toolbar ─────────────────────────────────── */
+    /* ── Toolbar ──────────────────────────────── */
     #msg-toolbar {
-      position: fixed;
-      bottom: 52px;
-      left: 0;
-      right: 220px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 0 12px 0 42px;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      overflow-x: auto;
-      z-index: 2;
+      position: fixed; bottom: 52px; left: 0; right: 220px; height: 36px;
+      display: flex; align-items: center; gap: 4px; padding: 0 12px 0 42px;
+      background: var(--surface); border-top: 1px solid var(--border);
+      overflow-x: auto; z-index: 2;
     }
-
-    @media(max-width:600px) {
-      #msg-toolbar {
-        right: 0;
-      }
-    }
-
     #msg-toolbar button {
-      height: 26px;
-      padding: 0 10px;
-      font-size: 12px;
-      font-family: inherit;
-      font-weight: 500;
-      color: var(--text-secondary);
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 13px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all var(--transition);
+      height: 26px; padding: 0 10px; font-size: 12px; font-family: inherit;
+      font-weight: 500; color: var(--text-secondary); background: var(--bg);
+      border: 1px solid var(--border); border-radius: 13px; cursor: pointer;
+      white-space: nowrap; transition: all var(--transition);
     }
+    #msg-toolbar button:hover { color: var(--accent); border-color: var(--accent); }
+    #msg-toolbar button.active { color: #fff; background: var(--accent); border-color: var(--accent); }
 
-    #msg-toolbar button:hover {
-      color: var(--accent);
-      border-color: var(--accent);
-    }
-
-    #msg-toolbar button.active {
-      color: #fff;
-      background: var(--accent);
-      border-color: var(--accent);
-    }
-
-    /* ── Reply bar ────────────────────────────────────────────── */
+    /* ── Reply bar ────────────────────────────── */
     #reply-bar {
-      display: none;
-      position: fixed;
-      bottom: 88px;
-      left: 0;
-      right: 0;
-      height: 32px;
-      padding: 0 16px 0 42px;
-      font-size: 12px;
-      line-height: 32px;
-      color: var(--text-secondary);
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      z-index: 2;
+      position: fixed; bottom: 88px; left: 0; right: 0; height: 32px;
+      padding: 0 16px 0 42px; font-size: 12px; line-height: 32px;
+      color: var(--text-secondary); background: var(--surface);
+      border-top: 1px solid var(--border); z-index: 2;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .cancel-reply { cursor: pointer; font-weight: 600; color: var(--danger); margin-left: 12px; }
+
+    /* ── Extra inputs ─────────────────────────── */
+    #extra-inputs {
+      position: fixed; bottom: 88px; left: 0; right: 0; display: flex;
+      flex-wrap: wrap; gap: 8px; padding: 6px 16px 6px 42px;
+      background: var(--surface); border-top: 1px solid var(--border); z-index: 1;
+    }
+    #extra-inputs input {
+      flex: 1; min-width: 80px; height: 28px; padding: 0 8px; font-size: 12px;
+      font-family: inherit; border: 1px solid var(--border); border-radius: 6px; outline: none;
     }
 
-    #reply-bar.show {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    body.has-extra-inputs #chatlog, body.has-extra-inputs #roster { bottom: 128px; }
+    body.has-extra-inputs #reply-bar { bottom: 128px; }
+    body.has-extra-inputs #spacer { height: calc(100vh - 128px - 5em); }
 
-    #reply-bar .cancel-reply {
-      cursor: pointer;
-      font-weight: 600;
-      color: var(--danger);
-      margin-left: 12px;
-    }
+    /* ── Messages ─────────────────────────────── */
+    @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* ── Rendered message styles ───────────────────────────────── */
-    .msg-bubble {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-bottom: 8px;
-      animation: msgIn 0.25s ease-out;
-    }
-
-    .msg-bubble .sender {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--accent);
-    }
-
+    .msg-bubble { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; animation: msgIn 0.25s ease-out; }
+    .msg-bubble .sender { font-size: 12px; font-weight: 600; color: var(--accent); }
     .msg-bubble .content {
-      padding: 8px 12px;
-      border-radius: var(--radius);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow-sm);
-      line-height: 1.5;
-      font-size: 14px;
-      max-width: 100%;
-      word-break: break-word;
+      padding: 8px 12px; border-radius: var(--radius); background: var(--surface);
+      border: 1px solid var(--border); box-shadow: var(--shadow-sm); line-height: 1.5;
+      font-size: 14px; max-width: 100%; word-break: break-word;
     }
-
-    .msg-bubble .content img.msg-image {
-      max-width: 240px;
-      max-height: 240px;
-      border-radius: 8px;
-      display: block;
+    .msg-bubble .content img.msg-image { max-width: 240px; max-height: 240px; border-radius: 8px; display: block; }
+    .msg-bubble .content audio { max-width: 100%; height: 36px; }
+    .msg-bubble .content video { max-width: 100%; max-height: 240px; border-radius: 8px; background: #000; }
+    .msg-bubble .reply-preview {
+      padding: 6px 10px; margin-bottom: 6px; border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0; background: var(--bg); font-size: 13px; color: var(--text-secondary);
     }
-
-    .msg-bubble .content audio {
-      max-width: 100%;
-      height: 36px;
+    .msg-bubble .reply-preview .replied-name { font-weight: 600; color: var(--accent); }
+    .msg-bubble .reply-btn {
+      float: right; font-size: 11px; font-weight: 500; color: var(--text-secondary);
+      cursor: pointer; background: none; border: none; padding: 0 4px;
+      opacity: 0; transition: opacity var(--transition);
     }
-
-    .msg-bubble .content video {
-      max-width: 100%;
-      max-height: 240px;
-      border-radius: 8px;
-      background: #000;
-    }
-
-    .msg-bubble .content .video-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .msg-bubble .content .video-info .play-icon {
-      font-size: 20px;
-    }
+    .msg-bubble:hover .reply-btn { opacity: 1; }
 
     .msg-bubble .product-card {
-      display: flex;
-      gap: 10px;
-      padding: 10px;
-      border-radius: var(--radius);
-      background: var(--bg);
-      border: 1px solid var(--border);
-      cursor: pointer;
+      display: flex; gap: 10px; padding: 10px; border-radius: var(--radius);
+      background: var(--bg); border: 1px solid var(--border); cursor: pointer;
       transition: box-shadow var(--transition);
     }
-
-    .msg-bubble .product-card:hover {
-      box-shadow: var(--shadow-md);
-    }
-
-    .msg-bubble .product-card img {
-      width: 64px;
-      height: 64px;
-      border-radius: 8px;
-      object-fit: cover;
-    }
-
-    .msg-bubble .product-card .info {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 2px;
-    }
-
-    .msg-bubble .product-card .title {
-      font-weight: 600;
-      font-size: 14px;
-    }
-
-    .msg-bubble .product-card .price {
-      font-weight: 700;
-      color: #ff3b30;
-      font-size: 16px;
-    }
-
-    .msg-bubble .product-card .arrow {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      color: var(--text-secondary);
-      font-size: 18px;
-    }
+    .msg-bubble .product-card:hover { box-shadow: var(--shadow-md); }
+    .msg-bubble .product-card img { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; }
+    .msg-bubble .product-card .info { display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+    .msg-bubble .product-card .title { font-weight: 600; font-size: 14px; }
+    .msg-bubble .product-card .price { font-weight: 700; color: #ff3b30; font-size: 16px; }
+    .msg-bubble .product-card .arrow { margin-left: auto; display: flex; align-items: center; color: var(--text-secondary); font-size: 18px; }
 
     .msg-bubble .code-block {
-      background: #1d1d1f;
-      color: #f5f5f7;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 13px;
-      overflow-x: auto;
-      white-space: pre-wrap;
-      margin: 4px -2px;
+      background: #1d1d1f; color: #f5f5f7; border-radius: 8px; padding: 10px 14px;
+      font-family: "SF Mono", "Fira Code", monospace; font-size: 13px;
+      overflow-x: auto; white-space: pre-wrap; margin: 4px -2px;
     }
+    .msg-bubble .location-row { display: flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 500; }
 
-    .msg-bubble .reply-preview {
-      padding: 6px 10px;
-      margin-bottom: 6px;
-      border-left: 3px solid var(--accent);
-      border-radius: 0 6px 6px 0;
-      background: var(--bg);
-      font-size: 13px;
-      color: var(--text-secondary);
-    }
+    .sys-msg { margin: 0 0 6px; padding: 6px 12px; border-radius: 8px; line-height: 1.5; color: var(--text-secondary); font-size: 13px; font-style: italic; animation: msgIn 0.25s ease-out; }
+    .roster-user { padding: 5px 8px; border-radius: 6px; margin: 2px 0; animation: msgIn 0.3s ease-out; }
+    #spacer { height: calc(100vh - 88px - 5em); }
 
-    .msg-bubble .reply-preview .replied-name {
-      font-weight: 600;
-      color: var(--accent);
+    /* ── Mobile roster ────────────────────────── */
+    @media (max-width:600px) {
+      #chatlog, #msg-toolbar { right: 0; }
+      #roster-toggle {
+        display: flex; position: fixed; z-index: 4; top: 10px; right: 10px;
+        height: 32px; padding: 0 12px; align-items: center; gap: 6px;
+        font-size: 13px; font-family: inherit; font-weight: 500;
+        color: var(--text-secondary); background: var(--surface);
+        border: 1px solid var(--border); border-radius: 16px;
+        cursor: pointer; box-shadow: var(--shadow-sm);
+        transition: background var(--transition);
+      }
+      #roster-toggle:hover { background: var(--bg); }
+      #roster-toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; }
+      #roster-backdrop {
+        display: none; position: fixed; z-index: 5; inset: 0; background: rgba(0, 0, 0, .25);
+      }
+      body.roster-open #roster-backdrop { display: block; }
+      #roster {
+        position: fixed; z-index: 6; top: 0; bottom: 0; right: 0; width: 240px;
+        padding: 56px 16px 16px; background: var(--surface);
+        border-left: 1px solid var(--border); box-shadow: var(--shadow-lg);
+        overflow-y: auto; transform: translateX(100%);
+        transition: transform 0.25s cubic-bezier(.4, 0, .2, 1);
+      }
+      body.roster-open #roster { transform: translateX(0); }
+      #roster::after {
+        content: "\u2715"; position: absolute; top: 16px; right: 16px;
+        width: 28px; height: 28px; line-height: 28px; text-align: center;
+        font-size: 14px; color: var(--text-secondary); cursor: pointer;
+        border-radius: 50%; transition: background var(--transition);
+      }
+      #roster::after:hover { background: var(--bg); }
     }
+    @media (min-width:601px) { #roster-toggle, #roster-backdrop { display: none !important; } }
 
-    .msg-bubble .reply-btn {
-      float: right;
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      cursor: pointer;
-      background: none;
-      border: none;
-      padding: 0 4px;
-      opacity: 0;
-      transition: opacity var(--transition);
-    }
-
-    .msg-bubble:hover .reply-btn {
-      opacity: 1;
-    }
-
-    .msg-bubble .location-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--accent);
-      font-weight: 500;
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .upload-loading { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; font-size: 16px; margin-left: 4px; animation: spin 1s linear infinite; }
   </style>
-
-  <!--===================================================================================-->
-  <!-- The actual HTML. There is not much of it. -->
-
 </head>
 
 <body>
-  <form id="name-form" action="/fake-form-action">
-    <input id="name-input" placeholder="your name">
-    <p>This chat runs entirely on the edge, powered by<br>
-      <a href="https://blog.cloudflare.com/introducing-workers-durable-objects" target="_blank">Cloudflare Workers
-        Durable Objects</a>
+<div id="app" v-cloak>
+
+  <!-- ── Name Chooser ─────────────────────────── -->
+  <form v-if="step === 'name'" class="modal-overlay" @submit.prevent="confirmName">
+    <input class="modal-input" v-model="username" placeholder="your name" maxlength="32" ref="nameInput" autofocus>
+    <p style="margin-top:20px;max-width:360px;padding:0 16px;text-align:center;font-size:13px;color:var(--text-secondary);line-height:1.6;">
+      This chat runs entirely on the edge, powered by<br>
+      <a href="https://blog.cloudflare.com/introducing-workers-durable-objects" target="_blank" style="color:var(--accent);text-decoration:none;">Cloudflare Workers Durable Objects</a>
     </p>
   </form>
-  <form id="room-form" action="/fake-form-action">
+
+  <!-- ── Room Chooser ─────────────────────────── -->
+  <form v-if="step === 'room'" class="modal-overlay room-body" @submit.prevent="joinPublic">
     <p>Enter a public room:</p>
-    <input id="room-name" placeholder="room name"><button id="go-public">Go &raquo;</button>
+    <input id="room-name" v-model="roomname" placeholder="room name" maxlength="32" ref="roomNameInput" autofocus>
+    <button id="go-public" class="btn" type="submit" :disabled="creatingPrivate">Go &raquo;</button>
     <p>OR</p>
-    <button id="go-private">Create a Private Room &raquo;</button>
+    <button id="go-private" class="btn" type="button" @click="createPrivate" :disabled="creatingPrivate">
+      {{ creatingPrivate ? 'Creating...' : 'Create a Private Room &raquo;' }}
+    </button>
   </form>
-  <form id="chatroom" action="/fake-form-action" onsubmit="return false">
-    <div id="chatlog">
+
+  <!-- ── Chat Interface ───────────────────────── -->
+  <form v-if="step === 'chat'" id="chatroom" action="/fake-form-action" @submit.prevent>
+
+    <!-- Chat log -->
+    <div id="chatlog" ref="chatlog" @scroll="onScroll">
       <div id="spacer"></div>
+      <p v-for="(msg, i) in messages" :key="i" :class="msg.sender ? '' : 'sys-msg'">
+        <span v-if="msg.sender" class="sender">{{ msg.sender }}</span>
+        {{ msg.text }}
+      </p>
+      <div v-for="(msg, i) in chatMessages" :key="'cm-' + i" class="msg-bubble" :data-ts="msg.ts">
+        <span class="sender">{{ msg.name }} </span>
+        <button type="button" class="reply-btn" @click="startReply(msg)">回复</button>
+        <div class="content">
+          <div v-if="msg.body.replyTo" class="reply-preview">
+            <span class="replied-name">{{ msg.body.replyTo.name }}</span>
+            : {{ msg.body.replyTo.text }}
+          </div>
+
+          <template v-if="msg.type === 'text'">{{ msg.body.text }}</template>
+
+          <img v-else-if="msg.type === 'image' && msg.body.uploadId" class="msg-image"
+            :src="fileUrl(msg.body.uploadId)" :alt="msg.body.filename"
+            @error="e => { e.target.style.display = 'none'; e.target.alt = '[图片加载失败]'; }">
+
+          <template v-else-if="msg.type === 'audio' && msg.body.uploadId">
+            <span v-if="msg.body.filename">🎤 {{ msg.body.filename }}</span>
+            <span v-if="msg.body.duration"> · {{ Math.round(msg.body.duration) }}s</span>
+            <audio controls :src="fileUrl(msg.body.uploadId)"></audio>
+          </template>
+
+          <template v-else-if="msg.type === 'video' && msg.body.uploadId">
+            <span v-if="msg.body.filename">🎬 {{ msg.body.filename }}</span>
+            <span v-if="msg.body.duration"> · {{ Math.round(msg.body.duration) }}s</span>
+            <video controls :src="fileUrl(msg.body.uploadId)" :poster="msg.body.thumbnail || ''"></video>
+          </template>
+
+          <div v-else-if="msg.type === 'product_card'" class="product-card"
+            :style="{ cursor: msg.body.link ? 'pointer' : 'default' }"
+            @click="msg.body.link && window.open(msg.body.link, '_blank')">
+            <img :src="msg.body.image" @error="e => e.target.style.display = 'none'" style="width:64px;height:64px;border-radius:8px;object-fit:cover;">
+            <div class="info">
+              <div class="title">{{ msg.body.title }}</div>
+              <div class="price">{{ msg.body.price }}</div>
+            </div>
+            <div class="arrow">›</div>
+          </div>
+
+          <div v-else-if="msg.type === 'code_snippet'" class="code-block">
+            <div v-if="msg.body.language" style="font-size:11px;color:#86868b;margin-bottom:4px;">{{ msg.body.language }}</div>
+            {{ msg.body.code }}
+          </div>
+
+          <div v-else-if="msg.type === 'location'" class="location-row">
+            📍 {{ msg.body.name }}
+            <span v-if="msg.body.lat && msg.body.lng">({{ msg.body.lat }}, {{ msg.body.lng }})</span>
+          </div>
+
+          <template v-else>{{ msg.body.text || JSON.stringify(msg.body) }}</template>
+        </div>
+      </div>
     </div>
-    <button id="roster-toggle" type="button"><span class="dot"></span><span id="roster-count">0</span></button>
-    <div id="roster-backdrop"></div>
-    <div id="roster"></div>
+
+    <!-- Roster toggle (mobile) -->
+    <button id="roster-toggle" type="button" @click="toggleRoster">
+      <span class="dot"></span><span>{{ roster.length }}</span>
+    </button>
+    <div id="roster-backdrop" @click="closeRoster" v-show="rosterPanelOpen"></div>
+
+    <!-- Roster -->
+    <div id="roster" :class="{ 'roster-open': rosterPanelOpen }">
+      <p v-for="user in roster" :key="user.name" class="roster-user" :data-ip="user.ip">
+        {{ user.name }}{{ user.ip ? ' (' + user.ip + ')' : '' }}
+      </p>
+    </div>
+
+    <!-- Message type toolbar -->
     <div id="msg-toolbar">
-      <button type="button" data-type="text" class="active" title="文字">T</button>
-      <button type="button" data-type="image" title="图片">🖼</button>
-      <button type="button" data-type="audio" title="语音">🎤</button>
-      <button type="button" data-type="video" title="视频">🎬</button>
-      <button type="button" data-type="product_card" title="商品卡片">🛒</button>
-      <button type="button" data-type="code_snippet" title="代码片段">&lt;/&gt;</button>
-      <button type="button" data-type="location" title="位置">📍</button>
-      <button id="upload-btn" type="button" title="上传" style="display:none">📤</button>
-      <span id="upload-loading" style="display:none">⏳</span>
-      <button id="clear-upload-btn" type="button" title="删除上传" style="display:none">✕</button>
+      <button v-for="t in msgTypes" :key="t.type" type="button"
+        :class="{ active: currentMsgType === t.type }"
+        @click="switchMsgType(t.type)">{{ t.label }}</button>
+      <button v-if="isMediaType" id="upload-btn" type="button" title="上传"
+        v-show="!lastUpload" @click="triggerUpload">📤</button>
+      <span class="upload-loading" v-show="uploading">⏳</span>
+      <button v-if="isMediaType" id="clear-upload-btn" type="button" title="删除上传"
+        v-show="lastUpload" @click="clearUpload">✕</button>
     </div>
-    <div id="reply-bar"><span class="reply-text"></span><span class="cancel-reply">✕</span></div>
-    <input id="chat-input">
-    <input type="file" id="file-input" accept="image/*,video/*,audio/*" style="display:none">
+
+    <!-- Reply bar -->
+    <div id="reply-bar" v-show="replyingTo">
+      <span>回复 {{ replyingTo.name }}: {{ replyingTo.text }}</span>
+      <span class="cancel-reply" @click="replyingTo = null">✕</span>
+    </div>
+
+    <!-- Extra inputs for current message type -->
+    <div id="extra-inputs" v-show="extraFields.length">
+      <input v-for="(f, idx) in extraFields" :key="idx" type="text"
+        :placeholder="f.placeholder" v-model="f.value"
+        @keydown.enter.prevent="focusInput">
+    </div>
+
+    <!-- Main chat input -->
+    <input id="chat-input" v-model="chatInputText" ref="chatInput"
+      :placeholder="placeholderText"
+      @keydown.enter.exact.prevent="handleSend"
+      @keydown.up="scrollChat(-50)"
+      @keydown.down="scrollChat(50)"
+      @keydown.page-up.prevent="scrollChat(-clientHeight() + 50)"
+      @keydown.page-down.prevent="scrollChat(clientHeight() - 50)"
+      @input="truncateInput">
+
+    <input type="file" ref="fileInput" accept="image/*,video/*,audio/*"
+      style="display:none" @change="onFileSelected">
   </form>
-</body>
 
-<!--===================================================================================-->
-<!-- Client-side JavaScript code for the app. -->
+</div>
 
-<script type="text/javascript">
-  let currentWebSocket = null;
-
-  // Current message type & reply state.
-  let currentMessageType = "text";
-  let replyingTo = null;
-
-  // Type-specific input fields (shown/hidden dynamically).
-  let extraInputs = {}; // { fieldName: inputElement }
-
-  let nameForm = document.querySelector("#name-form");
-  let nameInput = document.querySelector("#name-input");
-  let roomForm = document.querySelector("#room-form");
-  let roomNameInput = document.querySelector("#room-name");
-  let goPublicButton = document.querySelector("#go-public");
-  let goPrivateButton = document.querySelector("#go-private");
-  let chatroom = document.querySelector("#chatroom");
-  let chatlog = document.querySelector("#chatlog");
-  let chatInput = document.querySelector("#chat-input");
-  let roster = document.querySelector("#roster");
-  let rosterToggle = document.querySelector("#roster-toggle");
-  let rosterBackdrop = document.querySelector("#roster-backdrop");
-  let rosterCount = document.querySelector("#roster-count");
-  let msgToolbar = document.querySelector("#msg-toolbar");
-  let replyBar = document.querySelector("#reply-bar");
-
-  // Is the chatlog scrolled to the bottom?
-  let isAtBottom = true;
-
-  let username;
-  let roomname;
-
-  let hostname = window.location.host;
-  if (hostname == "") {
-    // Probably testing the HTML locally.
-    hostname = "edge-chat-demo.cloudflareworkers.com";
-  }
-
-  function startNameChooser() {
-    // Restore saved name if it exists.
-    let savedName = localStorage.getItem("chat-username");
-    if (savedName) {
-      nameInput.value = savedName;
-    }
-
-    nameForm.addEventListener("submit", event => {
-      event.preventDefault();
-      username = nameInput.value;
-      if (username.length > 0) {
-        localStorage.setItem("chat-username", username);
-        nameForm.remove();
-        roomname = "helloworld";
-        startChat();
+<script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.min.js"></script>
+<script>
+var app = new Vue({
+  el: '#app',
+  data: {
+    step: 'name',        // 'name' | 'room' | 'chat'
+    username: '',
+    roomname: '',
+    messages: [],        // { sender?, text } for system/notification messages
+    chatMessages: [],    // { type, body, name, ts } for typed messages
+    roster: [],          // { name, ip }
+    currentMsgType: 'text',
+    msgTypes: [
+      { type: 'text', label: 'T' },
+      { type: 'image', label: '🖼' },
+      { type: 'audio', label: '🎤' },
+      { type: 'video', label: '🎬' },
+      { type: 'product_card', label: '🛒' },
+      { type: 'code_snippet', label: '</>' },
+      { type: 'location', label: '📍' },
+    ],
+    extraFieldDefs: {
+      image: [],
+      audio: [],
+      video: [{ name: 'thumbnail', placeholder: '封面图 URL（可选）', value: '' }],
+      product_card: [
+        { name: 'image', placeholder: '图片 URL', value: '' },
+        { name: 'price', placeholder: '价格', value: '' },
+        { name: 'link', placeholder: '链接（可选）', value: '' },
+      ],
+      code_snippet: [{ name: 'language', placeholder: '语言（可选）', value: '' }],
+      location: [
+        { name: 'lat', placeholder: '纬度', value: '' },
+        { name: 'lng', placeholder: '经度', value: '' },
+      ],
+    },
+    replyingTo: null,
+    chatInputText: '',
+    lastUpload: null,     // upload result object
+    creatingPrivate: false,
+    isAtBottom: true,
+    rosterPanelOpen: false,
+    hostname: window.location.host || 'edge-chat-demo.cloudflareworkers.com',
+    lastTs: 0,
+    wroteWelcome: false,
+    ws: null,
+    _fileDialogOpen: false,
+    uploading: false,
+  },
+  computed: {
+    isMediaType() { return ['image', 'audio', 'video'].includes(this.currentMsgType); },
+    extraFields() { return this.extraFieldDefs[this.currentMsgType] || []; },
+    placeholderText() {
+      var map = {
+        text: '输入消息...', image: '请选择上传图片...', audio: '请选择上传音频...',
+        video: '请选择上传视频...', product_card: '商品标题...', code_snippet: '输入代码...',
+        location: '位置名称...',
+      };
+      return map[this.currentMsgType] || '输入消息...';
+    },
+    hasExtraInputs() {
+      return this.extraFields.length > 0;
+    },
+  },
+  watch: {
+    currentMsgType: function (v) {
+      document.body.classList.toggle('has-extra-inputs', v !== 'text');
+      for (var key in this.extraFieldDefs) {
+        if (this.extraFieldDefs.hasOwnProperty(key)) {
+          this.extraFieldDefs[key].forEach(function (f) { f.value = ''; });
+        }
       }
-    });
-
-    nameInput.addEventListener("input", event => {
-      if (event.currentTarget.value.length > 32) {
-        event.currentTarget.value = event.currentTarget.value.slice(0, 32);
+    },
+  },
+  methods: {
+    // ── Lifecycle ──────────────────────────────
+    confirmName: function () {
+      if (!this.username.trim()) return;
+      localStorage.setItem('chat-username', this.username);
+      if (document.location.hash.length > 1) {
+        this.roomname = document.location.hash.slice(1);
+        this.step = 'chat';
+        this.$nextTick(this.startChat);
+      } else {
+        this.step = 'room';
+        this.$nextTick(function () {
+          var el = this.$refs.roomNameInput;
+          if (el) el.focus();
+        });
       }
-    });
+    },
+    joinPublic: function () {
+      if (!this.roomname.trim()) return;
+      this.startChat();
+    },
+    createPrivate: function () {
+      var self = this;
+      this.creatingPrivate = true;
+      fetch('//' + this.hostname + '/api/room', { method: 'POST' })
+        .then(function (r) {
+          if (!r.ok) throw new Error('Failed');
+          return r.text();
+        })
+        .then(function (id) {
+          self.roomname = id;
+          self.startChat();
+        })
+        .catch(function (e) {
+          alert('Error: ' + e.message);
+          location.reload();
+        });
+    },
 
-    nameInput.focus();
-  }
+    // ── Chat core ──────────────────────────────
+    startChat: function () {
+      this.step = 'chat';
+      this.roomname = this.roomname.replace(/[^a-zA-Z0-9_-]/g, '').replace(/_/g, '-').toLowerCase();
 
-  function startRoomChooser() {
-    nameForm.remove();
-
-    if (document.location.hash.length > 1) {
-      roomname = document.location.hash.slice(1);
-      startChat();
-      return;
-    }
-
-    roomForm.addEventListener("submit", event => {
-      event.preventDefault();
-      roomname = roomNameInput.value;
-      if (roomname.length > 0) {
-        startChat();
-      }
-    });
-
-    roomNameInput.addEventListener("input", event => {
-      if (event.currentTarget.value.length > 32) {
-        event.currentTarget.value = event.currentTarget.value.slice(0, 32);
-      }
-    });
-
-    goPublicButton.addEventListener("click", event => {
-      roomname = roomNameInput.value;
-      if (roomname.length > 0) {
-        startChat();
-      }
-    });
-
-    goPrivateButton.addEventListener("click", async event => {
-      roomNameInput.disabled = true;
-      goPublicButton.disabled = true;
-      event.currentTarget.disabled = true;
-
-      let response = await fetch("https://" + hostname + "/api/room", { method: "POST" });
-      if (!response.ok) {
-        alert("something went wrong");
-        document.location.reload();
+      if (this.roomname.length > 32 && !this.roomname.match(/^[0-9a-f]{64}$/)) {
+        this.addSysMsg('Invalid room name.');
         return;
       }
-
-      roomname = await response.text();
-      startChat();
-    });
-
-    roomNameInput.focus();
-  }
-
-  function startChat() {
-    roomForm.remove();
-
-    // Normalize the room name a bit.
-    roomname = roomname.replace(/[^a-zA-Z0-9_-]/g, "").replace(/_/g, "-").toLowerCase();
-
-    if (roomname.length > 32 && !roomname.match(/^[0-9a-f]{64}$/)) {
-      addChatMessage("ERROR", "Invalid room name.");
-      return;
-    }
-
-    document.location.hash = "#" + roomname;
-
-    // Set initial placeholder (toolbar click not triggered for default "text" type).
-    chatInput.placeholder = "输入消息...";
-
-    chatInput.addEventListener("keydown", event => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        // Enter — send message.
-        event.preventDefault();
-        handleSend();
-      } else if (event.key === "ArrowUp") {
-        // up arrow
-        chatlog.scrollBy(0, -50);
-      } else if (event.key === "ArrowDown") {
-        // down arrow
-        chatlog.scrollBy(0, 50);
-      } else if (event.key === "PageUp") {
-        // page up
-        chatlog.scrollBy(0, -chatlog.clientHeight + 50);
-      } else if (event.key === "PageDown") {
-        // page down
-        chatlog.scrollBy(0, chatlog.clientHeight - 50);
-      }
-    });
-
-    // ── Message type toolbar ────────────────────────────────────
-    msgToolbar.querySelectorAll("button[data-type]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        // Update active button.
-        msgToolbar.querySelectorAll("button[data-type]").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        currentMessageType = btn.dataset.type;
-
-        // Show/hide upload/loading/clear button only for media types.
-        uploadLoading.style.display = "none";
-        if (["image", "audio", "video"].includes(currentMessageType)) {
-          if (window._lastUpload) {
-            uploadBtn.style.display = "none";
-            clearUploadBtn.style.display = "inline-flex";
-            clearUploadBtn.disabled = false;
-          } else {
-            uploadBtn.style.display = "inline-flex";
-            clearUploadBtn.style.display = "none";
-            clearUploadBtn.disabled = true;
-          }
-        } else {
-          uploadBtn.style.display = "none";
-          clearUploadBtn.style.display = "none";
-          clearUploadBtn.disabled = true;
-        }
-
-        // Show/hide extra input fields based on type.
-        updateExtraInputs(currentMessageType);
-        chatInput.placeholder = getPlaceholder(currentMessageType);
-        // Only auto-focus main input for text type; for others let user fill extra fields first.
-        if (currentMessageType === "text") chatInput.focus();
+      document.location.hash = '#' + this.roomname;
+      this.$nextTick(function () {
+        this.join();
+        if (this.$refs.chatInput) this.$refs.chatInput.focus();
       });
-    });
+    },
 
-    function getPlaceholder(type) {
-      let map = {
-        text: "输入消息...",
-        image: "请选择上传图片...",
-        audio: "请选择上传音频...",
-        video: "请选择上传视频...",
-        product_card: "商品标题...",
-        code_snippet: "输入代码...",
-        location: "位置名称...",
-      };
-      return map[type] || "输入消息...";
-    }
+    join: function () {
+      var self = this;
+      var wss = document.location.protocol === 'http:' ? 'ws://' : 'wss://';
+      var ws = new WebSocket(wss + this.hostname + '/api/room/' + this.roomname + '/websocket');
+      var rejoined = false;
+      var startTime = Date.now();
 
-    function buildExtraInputs() {
-      let container = document.createElement("div");
-      container.id = "extra-inputs";
-      container.style.cssText =
-        "position:fixed;bottom:88px;left:0;right:0;display:flex;flex-wrap:wrap;gap:8px;padding:6px 16px 6px 42px;background:var(--surface);border-top:1px solid var(--border);z-index:1;";
-
-      // We'll add fields dynamically in updateExtraInputs.
-      chatroom.parentNode.insertBefore(container, chatroom.nextSibling);
-      return container;
-    }
-    let extraContainer = buildExtraInputs();
-
-    function updateExtraInputs(type) {
-      // Remove all existing extra inputs.
-      while (extraContainer.firstChild) extraContainer.removeChild(extraContainer.firstChild);
-      extraInputs = {};
-
-      let fields = {
-        image: [],
-        audio: [],
-        video: [{ name: "thumbnail", placeholder: "封面图 URL（可选）" }],
-        product_card: [{ name: "image", placeholder: "图片 URL" }, { name: "price", placeholder: "价格" }, { name: "link", placeholder: "链接（可选）" }],
-        code_snippet: [{ name: "language", placeholder: "语言（可选）" }],
-        location: [{ name: "lat", placeholder: "纬度" }, { name: "lng", placeholder: "经度" }],
+      var rejoin = function () {
+        if (rejoined) return;
+        rejoined = true;
+        self.ws = null;
+        self.roster = [];
+        var elapsed = Date.now() - startTime;
+        var delay = elapsed < 10000 ? 10000 - elapsed : 0;
+        setTimeout(function () { self.join(); }, delay);
       };
 
-      if (fields[type]) {
-        fields[type].forEach(f => {
-          let inp = document.createElement("input");
-          inp.type = "text";
-          inp.placeholder = f.placeholder;
-          inp.style.cssText =
-            "flex:1;min-width:80px;height:28px;padding:0 8px;font-size:12px;font-family:inherit;border:1px solid var(--border);border-radius:6px;outline:none;";
-          inp.addEventListener("keydown", e => {
-            if (e.keyCode === 13) {
-              e.preventDefault();
-              chatInput.focus();
+      ws.addEventListener('open', function () {
+        self.ws = ws;
+        ws.send(JSON.stringify({ name: self.username }));
+      });
+
+      ws.addEventListener('message', function (event) {
+        var data = JSON.parse(event.data);
+        if (data.error) {
+          self.addSysMsg('* Error: ' + data.error);
+        } else if (data.joined) {
+          self.roster.push({ name: data.joined, ip: data.ip || '' });
+        } else if (data.quit) {
+          self.roster = self.roster.filter(function (u) { return u.name !== data.quit; });
+        } else if (data.ready) {
+          if (!self.wroteWelcome) {
+            self.wroteWelcome = true;
+            self.addSysMsg('* This is a demo app built with Cloudflare Workers Durable Objects. Source: https://github.com/cloudflare/workers-chat-demo');
+            self.addSysMsg('* WARNING: Participants are random internet users. Names are not authenticated. Chat history is saved.');
+            if (self.roomname.length === 64) {
+              self.addSysMsg('* Private room. Share the URL to invite others.');
+            } else {
+              self.addSysMsg('* Welcome to #' + self.roomname + '. Say hi!');
             }
-          });
-          extraContainer.appendChild(inp);
-          extraInputs[f.name] = inp;
+          }
+        } else if (data.type && data.body) {
+          if (data.timestamp > self.lastTs) {
+            var msg = {
+              type: data.type,
+              body: data.body,
+              name: data.sender ? data.sender.name : 'unknown',
+              ts: data.timestamp,
+            };
+            self.chatMessages.push(msg);
+            self.lastTs = data.timestamp;
+            self.scrollToBottom();
+          }
+        }
+      });
+
+      ws.addEventListener('close', rejoin);
+      ws.addEventListener('error', rejoin);
+    },
+
+    // ── Send ───────────────────────────────────
+    handleSend: function () {
+      if (!this.ws) return;
+      var type = this.currentMsgType;
+      var body = {};
+      var inputText = this.chatInputText.trim();
+      var self = this;
+
+      switch (type) {
+        case 'text':
+          if (!inputText) return;
+          body = { text: inputText };
+          break;
+        case 'image':
+        case 'audio':
+          if (!this.lastUpload || this.lastUpload.type !== type) return;
+          body = this.buildUploadBody();
+          break;
+        case 'video':
+          if (!this.lastUpload || this.lastUpload.type !== type) return;
+          body = this.buildUploadBody();
+          if (this.extraFields[0] && this.extraFields[0].value) {
+            body.thumbnail = this.extraFields[0].value.trim();
+          }
+          break;
+        case 'product_card':
+          if (!inputText) return;
+          body = {
+            title: inputText,
+            image: (this.extraFields[0] ? this.extraFields[0].value : '') || '',
+            price: (this.extraFields[1] ? this.extraFields[1].value : '') || '',
+          };
+          if (this.extraFields[2] && this.extraFields[2].value) body.link = this.extraFields[2].value.trim();
+          break;
+        case 'code_snippet':
+          if (!inputText) return;
+          body = { code: inputText };
+          if (this.extraFields[0] && this.extraFields[0].value) body.language = this.extraFields[0].value.trim();
+          break;
+        case 'location':
+          if (!inputText) return;
+          body = {
+            name: inputText,
+            lat: parseFloat(this.extraFields[0] ? this.extraFields[0].value : 0) || 0,
+            lng: parseFloat(this.extraFields[1] ? this.extraFields[1].value : 0) || 0,
+          };
+          break;
+        default: return;
+      }
+
+      if (this.replyingTo) body.replyTo = this.replyingTo;
+
+      this.ws.send(JSON.stringify({ type: type, body: body }));
+      this.chatInputText = '';
+      this.replyingTo = null;
+      this.scrollToBottom();
+
+      if (['image', 'audio', 'video'].includes(type)) {
+        this.lastUpload = null;
+      }
+      // Reset extra fields
+      this.extraFields.forEach(function (f) { f.value = ''; });
+    },
+
+    buildUploadBody: function () {
+      var u = this.lastUpload;
+      return {
+        uploadId: u.id,
+        filename: u.filename || '',
+        mimeType: u.mimeType || '',
+        size: u.size || 0,
+        duration: u.duration || undefined,
+      };
+    },
+
+    // ── Message types ──────────────────────────
+    switchMsgType: function (type) {
+      this.currentMsgType = type;
+      this.$nextTick(function () {
+        if (type === 'text' && this.$refs.chatInput) this.$refs.chatInput.focus();
+      });
+    },
+
+    // ── Upload ─────────────────────────────────
+    triggerUpload: function () {
+      var fi = this.$refs.fileInput;
+      fi.value = '';
+      this._fileDialogOpen = true;
+      this.uploading = false;
+      fi.click();
+    },
+    clearUpload: function () {
+      var self = this;
+      var id = this.lastUpload && this.lastUpload.id;
+      var p = id
+        ? fetch('/api/file/' + encodeURIComponent(id), { method: 'DELETE' })
+        : Promise.resolve();
+      p.then(function () {
+        self.lastUpload = null;
+        self.chatInputText = '';
+        if (self.$refs.fileInput) self.$refs.fileInput.value = '';
+      });
+    },
+    onFileSelected: function () {
+      var self = this;
+      this._fileDialogOpen = false;
+      var fileInput = this.$refs.fileInput;
+      var file = fileInput && fileInput.files[0];
+      if (!file) return;
+
+      var MAX = 20 * 1024 * 1024;
+      if (!file.type.match(/^(image|video|audio)\//)) { alert('只支持图片、视频和音频文件'); return; }
+      if (file.size > MAX) { alert('文件大小不能超过 20 MB'); return; }
+
+      this.uploading = true;
+
+      var durationP = Promise.resolve(0);
+      if (file.type.startsWith('video/') || file.type.startsWith('audio/')) {
+        durationP = new Promise(function (resolve) {
+          var el = document.createElement(file.type.startsWith('video/') ? 'video' : 'audio');
+          el.preload = 'metadata';
+          el.onloadedmetadata = function () { resolve(el.duration || 0); };
+          el.onerror = function () { resolve(0); };
+          el.src = URL.createObjectURL(file);
         });
       }
 
-      let visible = type !== "text";
-      extraContainer.style.display = visible ? "flex" : "none";
-      document.body.classList.toggle("has-extra-inputs", visible);
-    }
-
-    // ── Reply bar handler ───────────────────────────────────────
-    replyBar.querySelector(".cancel-reply").addEventListener("click", () => {
-      replyingTo = null;
-      replyBar.classList.remove("show");
-    });
-
-    // ── Send message ────────────────────────────────────────────
-    function handleSend() {
-      if (!currentWebSocket) return;
-
-      let value = chatInput.value.trim();
-
-      let type = currentMessageType;
-      let body = {};
-
-      switch (type) {
-        case "text":
-          if (!value) return;
-          body = { text: value };
-          break;
-        case "image":
-          if (!window._lastUpload || window._lastUpload.type !== "image") return;
-          body = buildUploadBody();
-          break;
-        case "audio":
-          if (!window._lastUpload || window._lastUpload.type !== "audio") return;
-          body = buildUploadBody();
-          break;
-        case "video":
-          if (!window._lastUpload || window._lastUpload.type !== "video") return;
-          body = buildUploadBody();
-          if (extraInputs["thumbnail"] && extraInputs["thumbnail"].value.trim()) {
-            body.thumbnail = extraInputs["thumbnail"].value.trim();
-          }
-          break;
-        case "product_card":
-          if (!value) return;
-          body = {
-            title: value,
-            image: (extraInputs["image"] && extraInputs["image"].value.trim()) || "",
-            price: (extraInputs["price"] && extraInputs["price"].value.trim()) || "",
-          };
-          if (extraInputs["link"] && extraInputs["link"].value.trim()) {
-            body.link = extraInputs["link"].value.trim();
-          }
-          break;
-        case "code_snippet":
-          if (!value) return;
-          body = { code: value };
-          if (extraInputs["language"] && extraInputs["language"].value.trim()) {
-            body.language = extraInputs["language"].value.trim();
-          }
-          break;
-        case "location":
-          if (!value) return;
-          body = {
-            name: value,
-            lat: parseFloat(extraInputs["lat"] ? extraInputs["lat"].value : 0) || 0,
-            lng: parseFloat(extraInputs["lng"] ? extraInputs["lng"].value : 0) || 0,
-          };
-          break;
-        default:
-          return;
-      }
-
-      // If user clicked "回复", attach replyTo after body is fully built.
-      if (replyingTo) {
-        body.replyTo = replyingTo;
-      }
-
-      currentWebSocket.send(JSON.stringify({ type, body }));
-      chatInput.value = "";
-
-      // Clear upload state for media types after sending.
-      if (["image", "audio", "video"].includes(type)) {
-        window._lastUpload = null;
-        fileInput.value = "";
-        chatInput.placeholder = getPlaceholder(type);
-        resetUploadUI();
-      }
-
-      // Reset reply state if user was replying.
-      if (replyingTo) {
-        replyingTo = null;
-        replyBar.classList.remove("show");
-      }
-
-      // Reset extra inputs.
-      Object.values(extraInputs).forEach(inp => { if (inp && inp.value !== undefined) inp.value = ""; });
-
-      isAtBottom = true;
-    }
-
-    chatInput.addEventListener("input", event => {
-      let max = currentMessageType === "code_snippet" ? 4096 : 2048;
-      if (event.currentTarget.value.length > max) {
-        event.currentTarget.value = event.currentTarget.value.slice(0, max);
-      }
-    });
-
-    chatlog.addEventListener("scroll", event => {
-      // Allow a 2px tolerance to handle sub-pixel rendering differences.
-      isAtBottom = (chatlog.scrollTop + chatlog.clientHeight + 2) >= chatlog.scrollHeight;
-    });
-
-    chatInput.focus();
-
-    // Helper: build message body from the last upload result.
-    function buildUploadBody() {
-      let last = window._lastUpload;
-      let body = {
-        uploadId: last.id,
-        filename: last.filename || "",
-        mimeType: last.mimeType || "",
-        size: last.size || 0,
-      };
-      // duration is read-only from API, only for audio/video.
-      if (last.duration) body.duration = last.duration;
-      return body;
-    }
-
-    // ── File upload ──────────────────────────────────────────────
-    let fileInput = document.querySelector("#file-input");
-    let uploadBtn = document.querySelector("#upload-btn");
-    let clearUploadBtn = document.querySelector("#clear-upload-btn");
-    let uploadLoading = document.querySelector("#upload-loading");
-
-    function resetUploadUI() {
-      uploadLoading.style.display = "none";
-      clearUploadBtn.style.display = "none";
-      clearUploadBtn.disabled = true;
-      uploadBtn.style.display = "inline-flex";
-    }
-
-    uploadBtn.addEventListener("click", () => {
-      fileInput.value = ""; // Allow re-uploading the same file.
-      _fileDialogOpen = true;
-      fileInput.click();
-      // Show disabled clear button while file dialog is open, no loading yet.
-      uploadBtn.style.display = "none";
-      clearUploadBtn.style.display = "inline-flex";
-      clearUploadBtn.disabled = true;
-    });
-
-    // Detect file dialog cancel — revert buttons if no file selected.
-    let _fileDialogOpen = false;
-    window.addEventListener("focus", () => {
-      if (_fileDialogOpen && fileInput.files.length === 0 && !window._lastUpload) {
-        resetUploadUI();
-      }
-      _fileDialogOpen = false;
-    });
-
-    clearUploadBtn.addEventListener("click", async () => {
-      let uploadId = window._lastUpload && window._lastUpload.id;
-      if (uploadId) {
-        await fetch(`/api/file/${encodeURIComponent(uploadId)}`, { method: "DELETE" });
-      }
-      window._lastUpload = null;
-      fileInput.value = "";
-      chatInput.value = "";
-      resetUploadUI();
-    });
-
-    fileInput.addEventListener("change", async () => {
-      _fileDialogOpen = false;
-      let file = fileInput.files[0];
-      if (!file) {
-        resetUploadUI();
-        return;
-      }
-
-      // Validate locally.
-      let MAX_SIZE = 20 * 1024 * 1024;
-      if (!file.type.startsWith("image/") && !file.type.startsWith("video/") && !file.type.startsWith("audio/")) {
-        alert("只支持图片、视频和音频文件");
-        resetUploadUI();
-        return;
-      }
-      if (file.size > MAX_SIZE) {
-        alert("文件大小不能超过 20 MB");
-        resetUploadUI();
-        return;
-      }
-
-      uploadLoading.style.display = "inline-flex";
-      uploadBtn.classList.add("uploading");
-      let originalTitle = uploadBtn.title;
-      uploadBtn.title = "上传中...";
-
-      // Extract duration for audio / video.
-      let duration = 0;
-      if (file.type.startsWith("video/") || file.type.startsWith("audio/")) {
-        try {
-          duration = await new Promise((resolve) => {
-            let el = document.createElement(file.type.startsWith("video/") ? "video" : "audio");
-            el.preload = "metadata";
-            el.onloadedmetadata = () => resolve(el.duration || 0);
-            el.onerror = () => resolve(0);
-            el.src = URL.createObjectURL(file);
+      durationP.then(function (duration) {
+        var fd = new FormData();
+        fd.append('file', file);
+        if (duration > 0) fd.append('duration', duration);
+        return fetch('/api/upload', { method: 'POST', body: fd }).then(function (r) {
+          if (!r.ok) return r.text().then(function (t) { throw new Error(t); });
+          return r.json();
+        }).then(function (result) {
+          self.lastUpload = result;
+          self.currentMsgType = result.type;
+          self.chatInputText = result.filename;
+          self.uploading = false;
+          self.$nextTick(function () {
+            if (self.$refs.chatInput) self.$refs.chatInput.focus();
           });
-        } catch { duration = 0; }
+        });
+      }).catch(function (err) {
+        self.uploading = false;
+        self.lastUpload = null;
+        alert('上传失败: ' + err.message);
+      });
+    },
+
+    // ── Roster (mobile) ───────────────────────
+    toggleRoster: function () {
+      this.rosterPanelOpen = !this.rosterPanelOpen;
+      document.body.classList.toggle('roster-open', this.rosterPanelOpen);
+    },
+    closeRoster: function () {
+      this.rosterPanelOpen = false;
+      document.body.classList.remove('roster-open');
+    },
+
+    // ── Reply ──────────────────────────────────
+    startReply: function (msg) {
+      this.replyingTo = { name: msg.name, text: this.getPreview(msg), type: msg.type };
+      this.$nextTick(function () {
+        if (this.$refs.chatInput) this.$refs.chatInput.focus();
+      });
+    },
+    getPreview: function (msg) {
+      var b = msg.body || {};
+      switch (msg.type) {
+        case 'text': return (b.text || '').slice(0, 50);
+        case 'image': return b.filename ? '[图片] ' + b.filename : '[图片]';
+        case 'audio': return b.filename ? '[语音] ' + b.filename : '[语音]';
+        case 'video': return b.filename ? '[视频] ' + b.filename : '[视频]';
+        case 'product_card': return '[商品] ' + (b.title || '');
+        case 'code_snippet': return '[代码] ' + (b.language || '');
+        case 'location': return '[位置] ' + (b.name || '');
+        default: return '[消息]';
       }
+    },
 
-      try {
-        let formData = new FormData();
-        formData.append("file", file);
-        if (duration > 0) formData.append("duration", duration);
-
-        let resp = await fetch("/api/upload", { method: "POST", body: formData });
-        if (!resp.ok) {
-          let text = await resp.text();
-          throw new Error(text || "上传失败");
-        }
-
-        let result = await resp.json();
-        // Store last upload result for building message body on submit.
-        window._lastUpload = result;
-
-        // Switch toolbar to match uploaded file type.
-        let type = result.type; // "image", "video", or "audio"
-        let btn = msgToolbar.querySelector(`button[data-type="${type}"]`);
-        if (btn) btn.click();
-
-        // Hide loading, show enabled clear button, hide upload button.
-        uploadLoading.style.display = "none";
-        uploadBtn.style.display = "none";
-        clearUploadBtn.style.display = "inline-flex";
-        clearUploadBtn.disabled = false;
-
-        chatInput.value = result.filename;
-        chatInput.focus();
-      } catch (err) {
-        alert("上传失败: " + err.message);
-        // Reset UI on error.
-        window._lastUpload = null;
-        resetUploadUI();
-      } finally {
-        uploadBtn.classList.remove("uploading");
-        uploadBtn.title = originalTitle;
+    // ── Helpers ────────────────────────────────
+    addSysMsg: function (text) {
+      this.messages.push({ sender: null, text: text });
+    },
+    fileUrl: function (uploadId) {
+      return location.protocol + '//' + location.host + '/api/file/' + uploadId + '/blob';
+    },
+    scrollToBottom: function () {
+      var self = this;
+      if (this.isAtBottom) {
+        this.$nextTick(function () {
+          var el = self.$refs.chatlog;
+          if (el) el.scrollTop = el.scrollHeight;
+        });
       }
-    });
-
-    // Mobile roster toggle ────────────────────────────────────────
-    rosterToggle.addEventListener("click", () => {
-      document.body.classList.toggle("roster-open");
-    });
-    rosterBackdrop.addEventListener("click", () => {
-      document.body.classList.remove("roster-open");
-    });
-    // Also close via the X pseudo-element in roaster
-    roster.addEventListener("click", event => {
-      if (event.target === roster) {
-        document.body.classList.remove("roster-open");
+    },
+    scrollChat: function (delta) {
+      var el = this.$refs.chatlog;
+      if (el) el.scrollBy(0, delta);
+    },
+    clientHeight: function () {
+      var el = this.$refs.chatlog;
+      return el ? el.clientHeight : 500;
+    },
+    onScroll: function () {
+      var el = this.$refs.chatlog;
+      if (el) this.isAtBottom = (el.scrollTop + el.clientHeight + 2) >= el.scrollHeight;
+    },
+    focusInput: function () {
+      if (this.$refs.chatInput) this.$refs.chatInput.focus();
+    },
+    truncateInput: function () {
+      var max = this.currentMsgType === 'code_snippet' ? 4096 : 2048;
+      if (this.chatInputText.length > max) {
+        this.chatInputText = this.chatInputText.slice(0, max);
       }
+    },
+  },
+  mounted: function () {
+    var self = this;
+    var saved = localStorage.getItem('chat-username');
+    if (saved) this.username = saved;
+
+    // Handle file dialog cancel detection
+    window.addEventListener('focus', function () {
+      if (self._fileDialogOpen && self.$refs.fileInput && self.$refs.fileInput.files.length === 0 && !self.lastUpload) {
+        self.uploading = false;
+      }
+      self._fileDialogOpen = false;
     });
 
-    // Detect mobile keyboard appearing and disappearing, and adjust the scroll as appropriate.
+    // Handle mobile keyboard resize
     if ('visualViewport' in window) {
-      window.visualViewport.addEventListener('resize', function (event) {
-        if (isAtBottom) {
-          chatlog.scrollBy(0, 1e8);
+      window.visualViewport.addEventListener('resize', function () {
+        if (self.isAtBottom) {
+          var el = self.$refs.chatlog;
+          if (el) el.scrollBy(0, 1e8);
         }
       });
     }
 
-    join();
-  }
-
-  let lastSeenTimestamp = 0;
-  let wroteWelcomeMessages = false;
-
-  function join() {
-    // If we are running via wrangler dev, use ws:
-    const wss = document.location.protocol === "http:" ? "ws://" : "wss://";
-    let ws = new WebSocket(wss + hostname + "/api/room/" + roomname + "/websocket");
-    let rejoined = false;
-    let startTime = Date.now();
-
-    let rejoin = async () => {
-      if (!rejoined) {
-        rejoined = true;
-        currentWebSocket = null;
-
-        // Clear the roster.
-        while (roster.firstChild) {
-          roster.removeChild(roster.firstChild);
-        }
-        updateRosterCount();
-
-        // Don't try to reconnect too rapidly.
-        let timeSinceLastJoin = Date.now() - startTime;
-        if (timeSinceLastJoin < 10000) {
-          // Less than 10 seconds elapsed since last join. Pause a bit.
-          await new Promise(resolve => setTimeout(resolve, 10000 - timeSinceLastJoin));
-        }
-
-        // OK, reconnect now!
-        join();
-      }
-    }
-
-    ws.addEventListener("open", event => {
-      currentWebSocket = ws;
-
-      // Send user info message.
-      ws.send(JSON.stringify({ name: username }));
+    this.$nextTick(function () {
+      if (this.$refs.nameInput) this.$refs.nameInput.focus();
     });
-
-    function updateRosterCount() {
-      // Count actual user <p> elements (exclude the ::before title)
-      let count = roster.querySelectorAll("p").length;
-      rosterCount.textContent = count;
-    }
-
-    // ...
-
-    ws.addEventListener("message", event => {
-      let data = JSON.parse(event.data);
-
-      if (data.error) {
-        addChatMessage(null, "* Error: " + data.error);
-      } else if (data.joined) {
-        let p = document.createElement("p");
-        p.setAttribute("data-name", data.joined);
-        p.setAttribute("data-ip", data.ip || "");
-        p.innerText = data.joined + (data.ip ? " (" + data.ip + ")" : "");
-        roster.appendChild(p);
-        updateRosterCount();
-      } else if (data.quit) {
-        for (let child of roster.childNodes) {
-          if (child.getAttribute && child.getAttribute("data-name") == data.quit) {
-            roster.removeChild(child);
-            break;
-          }
-        }
-        updateRosterCount();
-      } else if (data.ready) {
-        if (!wroteWelcomeMessages) {
-          wroteWelcomeMessages = true;
-          addChatMessage(null,
-            "* This is a demo app built with Cloudflare Workers Durable Objects. The source code " +
-            "can be found at: https://github.com/cloudflare/workers-chat-demo");
-          addChatMessage(null,
-            "* WARNING: Participants in this chat are random people on the internet. " +
-            "Names are not authenticated; anyone can pretend to be anyone. The people " +
-            "you are chatting with are NOT Cloudflare employees. Chat history is saved.");
-          if (roomname.length == 64) {
-            addChatMessage(null,
-              "* This is a private room. You can invite someone to the room by sending them the URL.");
-          } else {
-            addChatMessage(null,
-              "* Welcome to #" + roomname + ". Say hi!");
-          }
-        }
-      } else if (data.type && data.body) {
-        //
-        // 消息格式示例:
-        // { type: "text", body: { text: "hello" }, sender: { name: "Alice" }, timestamp: 1234567890 }
-        // { type: "image", body: { uploadId: "abc-123", filename: "photo.jpg", mimeType: "image/jpeg", size: 102400 }, sender: { name: "Bob" }, timestamp: 1234567890 }
-        // { type: "audio", body: { uploadId: "abc-456", filename: "recording.mp3", mimeType: "audio/mpeg", size: 512000, duration: 60 }, sender: { name: "Carol" }, timestamp: 1234567890 }
-        // { type: "video", body: { uploadId: "abc-789", thumbnail: "https://...", filename: "clip.mp4", mimeType: "video/mp4", size: 2048000, duration: 120 }, sender: { name: "Dave" }, timestamp: 1234567890 }
-        // { type: "product_card", body: { title: "xxx", image: "https://...", price: "99.00", link: "https://..." }, sender: "...", timestamp: ... }
-        // { type: "code_snippet", body: { code: "...", language: "js" }, sender: "...", timestamp: ... }
-        // { type: "location", body: { lat: 22.54, lng: 113.93, name: "深圳" }, sender: "...", timestamp: ... }
-        if (data.timestamp > lastSeenTimestamp) {
-          addChatMessage(data.sender ? data.sender.name : null, data);
-          lastSeenTimestamp = data.timestamp;
-        }
-      }
-    });
-
-    ws.addEventListener("close", event => {
-      console.log("WebSocket closed, reconnecting:", event.code, event.reason);
-      rejoin();
-    });
-    ws.addEventListener("error", event => {
-      console.log("WebSocket error, reconnecting:", event);
-      rejoin();
-    });
-  }
-
-  function addChatMessage(name, data) {
-    // ── System / notification message ──
-    if (name === null && typeof data === "string") {
-      let p = document.createElement("p");
-      p.innerText = data;
-      chatlog.appendChild(p);
-      if (isAtBottom) requestAnimationFrame(() => { chatlog.scrollTop = chatlog.scrollHeight; });
-      return;
-    }
-
-    // ── New typed envelope ──
-    let envelope = data;
-    let type = envelope.type;
-    let body = envelope.body || {};
-    let senderName = envelope.sender ? envelope.sender.name : (name || "unknown");
-    let timestamp = envelope.timestamp || 0;
-
-    let bubble = document.createElement("div");
-    bubble.className = "msg-bubble";
-    bubble.setAttribute("data-ts", timestamp);
-
-    // Sender line.
-    let senderSpan = document.createElement("span");
-    senderSpan.className = "sender";
-    senderSpan.innerText = senderName + " ";
-    bubble.appendChild(senderSpan);
-
-    // Reply button (hover to show).
-    let replyBtn = document.createElement("button");
-    replyBtn.type = "button";
-    replyBtn.className = "reply-btn";
-    replyBtn.textContent = "回复";
-    replyBtn.addEventListener("click", () => {
-      replyingTo = { name: senderName, text: getPreviewText(type, body), type: type };
-      replyBar.querySelector(".reply-text").innerText = "回复 " + senderName + ": " + getPreviewText(type, body);
-      replyBar.classList.add("show");
-      chatInput.focus();
-    });
-    bubble.appendChild(replyBtn);
-
-    // Content container.
-    let content = document.createElement("div");
-    content.className = "content";
-
-    // Render reply-preview if body carries a replyTo reference.
-    if (body.replyTo) {
-      let preview = document.createElement("div");
-      preview.className = "reply-preview";
-      let rn = document.createElement("span");
-      rn.className = "replied-name";
-      rn.innerText = body.replyTo.name || "";
-      preview.appendChild(rn);
-      preview.appendChild(document.createTextNode(": " + (body.replyTo.text || "")));
-      content.appendChild(preview);
-    }
-
-    // Render type-specific body.
-    switch (type) {
-      case "text":
-        content.appendChild(document.createTextNode(body.text || ""));
-        break;
-      case "image": {
-        let imgUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
-        if (imgUrl) {
-          let img = document.createElement("img");
-          img.className = "msg-image";
-          img.src = imgUrl;
-          img.alt = body.filename || "";
-          img.onerror = () => { img.alt = "[图片加载失败]"; img.style.display = "none"; };
-          content.appendChild(img);
-        }
-        break;
-      }
-      case "audio": {
-        let mediaUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
-        if (mediaUrl) {
-          let infoParts = [];
-          if (body.filename) infoParts.push("🎤 " + body.filename);
-          if (body.duration) infoParts.push(Math.round(body.duration) + "s");
-          if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
-          let audio = document.createElement("audio");
-          audio.controls = true;
-          audio.src = mediaUrl;
-          content.appendChild(audio);
-        }
-        break;
-      }
-      case "video": {
-        let mediaUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
-        if (mediaUrl) {
-          let infoParts = [];
-          if (body.filename) infoParts.push("🎬 " + body.filename);
-          if (body.duration) infoParts.push(Math.round(body.duration) + "s");
-          if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
-          let vid = document.createElement("video");
-          vid.controls = true;
-          vid.src = mediaUrl;
-          vid.poster = body.thumbnail || "";
-          content.appendChild(vid);
-        }
-        break;
-      }
-      case "product_card":
-        {
-          let card = document.createElement("div");
-          card.className = "product-card";
-          if (body.link) {
-            card.style.cursor = "pointer";
-            card.addEventListener("click", () => window.open(body.link, "_blank"));
-          }
-          let img = document.createElement("img");
-          img.src = body.image || "";
-          img.onerror = () => { img.style.display = "none"; };
-          card.appendChild(img);
-          let info = document.createElement("div");
-          info.className = "info";
-          let title = document.createElement("div");
-          title.className = "title";
-          title.innerText = body.title || "";
-          info.appendChild(title);
-          let price = document.createElement("div");
-          price.className = "price";
-          price.innerText = body.price || "";
-          info.appendChild(price);
-          card.appendChild(info);
-          let arrow = document.createElement("div");
-          arrow.className = "arrow";
-          arrow.textContent = "›";
-          card.appendChild(arrow);
-          content.appendChild(card);
-        }
-        break;
-      case "code_snippet":
-        {
-          let pre = document.createElement("div");
-          pre.className = "code-block";
-          if (body.language) {
-            let lang = document.createElement("div");
-            lang.style.cssText = "font-size:11px;color:#86868b;margin-bottom:4px;";
-            lang.innerText = body.language;
-            pre.appendChild(lang);
-          }
-          pre.appendChild(document.createTextNode(body.code || ""));
-          content.appendChild(pre);
-        }
-        break;
-      case "location":
-        {
-          let row = document.createElement("div");
-          row.className = "location-row";
-          row.innerHTML = "📍 " + (body.name || "");
-          if (body.lat && body.lng) {
-            row.innerHTML += " (" + body.lat + ", " + body.lng + ")";
-          }
-          content.appendChild(row);
-        }
-        break;
-      default:
-        content.appendChild(document.createTextNode(body.text || JSON.stringify(body)));
-    }
-
-    bubble.appendChild(content);
-    chatlog.appendChild(bubble);
-
-    if (isAtBottom) {
-      requestAnimationFrame(() => { chatlog.scrollTop = chatlog.scrollHeight; });
-    }
-  }
-
-  function getPreviewText(type, body) {
-    switch (type) {
-      case "text": return (body.text || "").slice(0, 50);
-      case "image": return body.filename ? "[图片] " + body.filename : "[图片]";
-      case "audio": return body.filename ? "[语音] " + body.filename : "[语音]";
-      case "video": return body.filename ? "[视频] " + body.filename : "[视频]";
-      case "product_card": return "[商品] " + (body.title || "");
-      case "code_snippet": return "[代码] " + (body.language || "");
-      case "location": return "[位置] " + (body.name || "");
-      case "file": return "[文件] " + (body.filename || "");
-      default: return "[消息]";
-    }
-  }
-
-  startNameChooser();
+  },
+});
 </script>
-<!--===================================================================================-->
-
+</body>
 </html>
