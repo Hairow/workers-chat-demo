@@ -1025,6 +1025,7 @@
           if (extraInputs["caption"] && extraInputs["caption"].value.trim()) {
             body.caption = extraInputs["caption"].value.trim();
           }
+          attachUploadMeta(body, value);
           break;
         case "audio":
           if (!value) return;
@@ -1032,6 +1033,7 @@
           if (extraInputs["duration"] && extraInputs["duration"].value.trim()) {
             body.duration = parseInt(extraInputs["duration"].value) || 0;
           }
+          attachUploadMeta(body, value);
           break;
         case "video":
           if (!value) return;
@@ -1042,6 +1044,7 @@
           if (extraInputs["duration"] && extraInputs["duration"].value.trim()) {
             body.duration = parseInt(extraInputs["duration"].value) || 0;
           }
+          attachUploadMeta(body, value);
           break;
         case "product_card":
           if (!value) return;
@@ -1107,6 +1110,16 @@
 
     chatInput.focus();
 
+    // Helper: attach upload metadata when the URL matches the last upload.
+    function attachUploadMeta(body, url) {
+      let last = window._lastUpload;
+      if (!last || !url || !url.includes(`/api/file/${last.id}/`)) return;
+      body.uploadId = last.id;
+      body.filename = last.filename || "";
+      body.mimeType = last.mimeType || "";
+      body.size = last.size || 0;
+    }
+
     // ── File upload ──────────────────────────────────────────────
     let fileInput = document.querySelector("#file-input");
     let uploadBtn = document.querySelector("#upload-btn");
@@ -1161,6 +1174,8 @@
         }
 
         let result = await resp.json();
+        // Store last upload result for attaching to message body.
+        window._lastUpload = result;
         // Build the access URL.
         let fileUrl = `${location.protocol}//${location.host}/api/file/${result.id}/blob`;
 
@@ -1388,15 +1403,22 @@
         break;
       case "audio":
         if (body.url) {
+          let infoParts = [];
+          if (body.filename) infoParts.push("🎤 " + body.filename);
+          if (body.duration) infoParts.push(body.duration + "s");
+          if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
           let audio = document.createElement("audio");
           audio.controls = true;
           audio.src = body.url;
-          if (body.duration) content.appendChild(document.createTextNode("🎤 " + body.duration + "s  "));
           content.appendChild(audio);
         }
         break;
       case "video":
         if (body.url) {
+          let infoParts = [];
+          if (body.filename) infoParts.push("🎬 " + body.filename);
+          if (body.duration) infoParts.push(body.duration + "s");
+          if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
           let vid = document.createElement("video");
           vid.controls = true;
           vid.src = body.url;
@@ -1494,9 +1516,9 @@
   function getPreviewText(type, body) {
     switch (type) {
       case "text": return (body.text || "").slice(0, 50);
-      case "image": return "[图片]";
-      case "audio": return "[语音]";
-      case "video": return "[视频]";
+      case "image": return body.filename ? "[图片] " + body.filename : "[图片]";
+      case "audio": return body.filename ? "[语音] " + body.filename : "[语音]";
+      case "video": return body.filename ? "[视频] " + body.filename : "[视频]";
       case "product_card": return "[商品] " + (body.title || "");
       case "code_snippet": return "[代码] " + (body.language || "");
       case "location": return "[位置] " + (body.name || "");
