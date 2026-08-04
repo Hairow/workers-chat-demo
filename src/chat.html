@@ -36,21 +36,37 @@
 
     /* ── Chatlog ──────────────────────────────── */
     #chatlog {
-      position: fixed; top: 0; bottom: 88px; left: 0; right: 220px;
+      position: fixed; top: 0; bottom: 88px; left: 0; right: 0;
       overflow-y: auto; padding: 16px 20px; scroll-behavior: smooth;
     }
     [v-cloak] { display: none; }
 
     /* ── Roster ───────────────────────────────── */
+    #roster-toggle {
+      position: fixed; z-index: 4; top: 10px; right: 10px;
+      display: flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 12px;
+      font-size: 13px; font-family: inherit; font-weight: 500;
+      color: var(--text-secondary); background: var(--surface);
+      border: 1px solid var(--border); border-radius: 16px;
+      cursor: pointer; box-shadow: var(--shadow-sm);
+      transition: background var(--transition);
+    }
+    #roster-toggle:hover { background: var(--bg); }
+    #roster-toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; }
+
     #roster {
-      position: fixed; right: 0; top: 0; bottom: 88px; width: 220px;
-      padding: 16px; background: var(--surface); border-left: 1px solid var(--border);
+      display: none; position: fixed; z-index: 5; top: 50px; right: 10px;
+      width: 200px; max-height: 60vh; padding: 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow-lg);
       overflow-y: auto; font-weight: 500; font-size: 13px;
     }
+    #roster.open { display: block; }
     #roster::before {
       content: "在线用户"; display: block; font-size: 11px; font-weight: 600;
       text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary);
-      padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px;
     }
 
     /* ── Input ────────────────────────────────── */
@@ -117,7 +133,7 @@
 
     /* ── Toolbar ──────────────────────────────── */
     #msg-toolbar {
-      position: fixed; bottom: 52px; left: 0; right: 220px; height: 36px;
+      position: fixed; bottom: 52px; left: 0; right: 0; height: 36px;
       display: flex; align-items: center; gap: 4px; padding: 0 12px 0 42px;
       background: var(--surface); border-top: 1px solid var(--border);
       overflow-x: auto; z-index: 2;
@@ -161,7 +177,7 @@
       font-family: inherit; border: 1px solid var(--border); border-radius: 6px; outline: none;
     }
 
-    body.has-extra-inputs #chatlog, body.has-extra-inputs #roster { bottom: 128px; }
+    body.has-extra-inputs #chatlog { bottom: 128px; }
     body.has-extra-inputs #reply-bar { bottom: 128px; }
     body.has-extra-inputs #spacer { height: calc(100vh - 128px - 5em); }
 
@@ -213,41 +229,7 @@
     .roster-user { padding: 5px 8px; border-radius: 6px; margin: 2px 0; animation: msgIn 0.3s ease-out; }
     #spacer { height: calc(100vh - 88px - 5em); }
 
-    /* ── Mobile roster ────────────────────────── */
-    @media (max-width:600px) {
-      #chatlog, #msg-toolbar { right: 0; }
-      #roster-toggle {
-        display: flex; position: fixed; z-index: 4; top: 10px; right: 10px;
-        height: 32px; padding: 0 12px; align-items: center; gap: 6px;
-        font-size: 13px; font-family: inherit; font-weight: 500;
-        color: var(--text-secondary); background: var(--surface);
-        border: 1px solid var(--border); border-radius: 16px;
-        cursor: pointer; box-shadow: var(--shadow-sm);
-        transition: background var(--transition);
-      }
-      #roster-toggle:hover { background: var(--bg); }
-      #roster-toggle .dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; }
-      #roster-backdrop {
-        display: none; position: fixed; z-index: 5; inset: 0; background: rgba(0, 0, 0, .25);
-      }
-      body.roster-open #roster-backdrop { display: block; }
-      #roster {
-        position: fixed; z-index: 6; top: 0; bottom: 0; right: 0; width: 240px;
-        padding: 56px 16px 16px; background: var(--surface);
-        border-left: 1px solid var(--border); box-shadow: var(--shadow-lg);
-        overflow-y: auto; transform: translateX(100%);
-        transition: transform 0.25s cubic-bezier(.4, 0, .2, 1);
-      }
-      body.roster-open #roster { transform: translateX(0); }
-      #roster::after {
-        content: "\u2715"; position: absolute; top: 16px; right: 16px;
-        width: 28px; height: 28px; line-height: 28px; text-align: center;
-        font-size: 14px; color: var(--text-secondary); cursor: pointer;
-        border-radius: 50%; transition: background var(--transition);
-      }
-      #roster::after:hover { background: var(--bg); }
-    }
-    @media (min-width:601px) { #roster-toggle, #roster-backdrop { display: none !important; } }
+    /* ── Mobile roster removed — use unified absolute dropdown ── */
 
     @keyframes spin { to { transform: rotate(360deg); } }
     .upload-loading { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; font-size: 16px; margin-left: 4px; animation: spin 1s linear infinite; }
@@ -340,17 +322,15 @@
       </div>
     </div>
 
-    <!-- Roster toggle (mobile) -->
-    <button id="roster-toggle" type="button" @click="toggleRoster">
+    <!-- Roster toggle + dropdown -->
+    <button id="roster-toggle" type="button" @click="rosterPanelOpen = !rosterPanelOpen">
       <span class="dot"></span><span>{{ roster.length }}</span>
     </button>
-    <div id="roster-backdrop" @click="closeRoster" v-show="rosterPanelOpen"></div>
-
-    <!-- Roster -->
-    <div id="roster" :class="{ 'roster-open': rosterPanelOpen }">
+    <div id="roster" :class="{ open: rosterPanelOpen }">
       <p v-for="user in roster" :key="user.name" class="roster-user" :data-ip="user.ip">
         {{ user.name }}{{ user.ip ? ' (' + user.ip + ')' : '' }}
       </p>
+      <p v-if="!roster.length" style="color:var(--text-secondary);font-size:12px;">暂无用户</p>
     </div>
 
     <!-- Message type toolbar -->
@@ -735,15 +715,9 @@ var app = new Vue({
       });
     },
 
-    // ── Roster (mobile) ───────────────────────
-    toggleRoster: function () {
-      this.rosterPanelOpen = !this.rosterPanelOpen;
-      document.body.classList.toggle('roster-open', this.rosterPanelOpen);
-    },
-    closeRoster: function () {
-      this.rosterPanelOpen = false;
-      document.body.classList.remove('roster-open');
-    },
+    // ── Roster ─────────────────────────────────
+    // Roster is toggled via rosterPanelOpen data property directly in template.
+    // 在线列表通过 rosterPanelOpen 数据属性在模板中直接切换。
 
     // ── Reply ──────────────────────────────────
     startReply: function (msg) {
