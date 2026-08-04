@@ -365,12 +365,6 @@
       font-size: 11px;
       color: var(--text-secondary);
       margin-left: 6px;
-      opacity: 0;
-      transition: opacity .15s;
-    }
-
-    .msg-header:hover .msg-time {
-      opacity: 1;
     }
 
     /* ── Image preview overlay ────────────────── */
@@ -480,11 +474,14 @@
       flex-direction: column;
       gap: 4px;
       margin-bottom: 24px;
+      width: fit-content;
+      max-width: 50%;
       animation: msgIn 0.25s ease-out;
     }
     .msg-bubble.self {
       align-items: flex-end;
       text-align: right;
+      margin-left: auto;
     }
 
     .msg-bubble .sender {
@@ -504,7 +501,7 @@
       box-shadow: var(--shadow-sm);
       line-height: 1.5;
       font-size: 14px;
-      max-width: 100%;
+      max-width: 50%;
       word-break: break-word;
     }
 
@@ -517,12 +514,12 @@
     }
 
     .msg-bubble .content audio {
-      max-width: 100%;
+      max-width: 50%;
       height: 36px;
     }
 
     .msg-bubble .content video {
-      max-width: 100%;
+      max-width: 50%;
       max-height: 240px;
       border-radius: 8px;
       background: #000;
