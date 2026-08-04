@@ -1233,6 +1233,11 @@
         // Store last upload result for building message body on submit.
         window._lastUpload = result;
 
+        // Switch toolbar to match uploaded file type.
+        let type = result.type; // "image", "video", or "audio"
+        let btn = msgToolbar.querySelector(`button[data-type="${type}"]`);
+        if (btn) btn.click();
+
         // Hide loading, show enabled clear button, hide upload button.
         uploadLoading.style.display = "none";
         uploadBtn.style.display = "none";
