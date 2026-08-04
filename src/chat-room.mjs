@@ -180,7 +180,6 @@ export class ChatRoom {
     product_card: { required: ["title", "image", "price"], optional: ["link", "replyTo"], maxLen: { title: 128, price: 32 } },
     code_snippet: { required: ["code"], optional: ["language", "replyTo"], maxLen: { code: 4096, language: 32 } },
     location: { required: ["lat", "lng", "name"], optional: ["replyTo"], maxLen: { name: 128 } },
-    file: { required: ["url", "filename", "size"], optional: ["replyTo"], maxLen: { filename: 256 } },
   };
 
   // Validate a message according to its type schema.

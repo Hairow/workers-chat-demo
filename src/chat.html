@@ -730,19 +730,6 @@
       font-weight: 500;
     }
 
-    .msg-bubble .file-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 10px;
-      background: var(--bg);
-      border-radius: 8px;
-      font-size: 13px;
-    }
-
-    .msg-bubble .file-row .file-icon {
-      font-size: 20px;
-    }
   </style>
 
   <!--===================================================================================-->
@@ -779,7 +766,6 @@
       <button data-type="product_card" title="商品卡片">🛒</button>
       <button data-type="code_snippet" title="代码片段">&lt;/&gt;</button>
       <button data-type="location" title="位置">📍</button>
-      <button data-type="file" title="文件">📎</button>
     </div>
     <div id="reply-bar"><span class="reply-text"></span><span class="cancel-reply">✕</span></div>
     <input id="chat-input">
@@ -959,7 +945,6 @@
         product_card: "商品标题...",
         code_snippet: "输入代码...",
         location: "位置名称...",
-        file: "文件描述...",
       };
       return map[type] || "输入消息...";
     }
@@ -988,7 +973,6 @@
         product_card: [{ name: "image", placeholder: "图片 URL" }, { name: "price", placeholder: "价格" }, { name: "link", placeholder: "链接（可选）" }],
         code_snippet: [{ name: "language", placeholder: "语言（可选）" }],
         location:     [{ name: "lat", placeholder: "纬度" }, { name: "lng", placeholder: "经度" }],
-        file:         [{ name: "url", placeholder: "文件 URL" }, { name: "size", placeholder: "文件大小" }],
       };
 
       if (fields[type]) {
@@ -1083,14 +1067,6 @@
             name: value,
             lat: parseFloat(extraInputs["lat"] ? extraInputs["lat"].value : 0) || 0,
             lng: parseFloat(extraInputs["lng"] ? extraInputs["lng"].value : 0) || 0,
-          };
-          break;
-        case "file":
-          if (!value) return;
-          body = {
-            filename: value,
-            url: (extraInputs["url"] && extraInputs["url"].value.trim()) || "",
-            size: (extraInputs["size"] && extraInputs["size"].value.trim()) || "",
           };
           break;
         default:
