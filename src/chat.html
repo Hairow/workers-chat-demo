@@ -357,6 +357,9 @@
       margin-left: 0 !important;
     }
 
+    .msg-header {
+      white-space: nowrap;
+    }
     .msg-time {
       font-size: 11px; color: var(--text-secondary); margin-left: 6px;
     }
@@ -685,8 +688,10 @@
         <div id="spacer"></div>
 
         <div v-for="(msg, i) in chatMessages" :key="'cm-' + i" class="msg-bubble" :data-ts="msg.ts">
-          <span class="sender">{{ msg.name }}</span>
-          <span class="msg-time">{{ formatTime(msg.ts) }}</span>
+          <div class="msg-header">
+            <span class="sender">{{ msg.name }}</span>
+            <span class="msg-time">{{ formatTime(msg.ts) }}</span>
+          </div>
           <button type="button" class="reply-btn" @click="startReply(msg)">回复</button>
           <div class="content">
             <div v-if="msg.body.replyTo" class="reply-preview">
