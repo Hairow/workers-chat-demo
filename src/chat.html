@@ -362,7 +362,9 @@
     }
     .msg-time {
       font-size: 11px; color: var(--text-secondary); margin-left: 6px;
+      opacity: 0; transition: opacity .15s;
     }
+    .msg-header:hover .msg-time { opacity: 1; }
 
     /* ── Image preview overlay ────────────────── */
     .img-overlay {
