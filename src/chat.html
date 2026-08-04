@@ -302,11 +302,15 @@
       background: var(--accent);
       color: #fff;
       cursor: pointer;
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       z-index: 3;
       transition: transform var(--transition), opacity var(--transition);
+    }
+
+    #upload-btn.visible {
+      display: flex;
     }
 
     #upload-btn:hover {
@@ -729,7 +733,6 @@
       color: var(--accent);
       font-weight: 500;
     }
-
   </style>
 
   <!--===================================================================================-->
@@ -928,6 +931,9 @@
         btn.classList.add("active");
         currentMessageType = btn.dataset.type;
 
+        // Show/hide upload button only for media types.
+        uploadBtn.classList.toggle("visible", ["image", "audio", "video"].includes(currentMessageType));
+
         // Show/hide extra input fields based on type.
         updateExtraInputs(currentMessageType);
         chatInput.placeholder = getPlaceholder(currentMessageType);
@@ -939,9 +945,9 @@
     function getPlaceholder(type) {
       let map = {
         text: "输入消息...",
-        image: "请先上传图片...",
-        audio: "请先上传音频...",
-        video: "请先上传视频...",
+        image: "请选择上传图片...",
+        audio: "请选择上传音频...",
+        video: "请选择上传视频...",
         product_card: "商品标题...",
         code_snippet: "输入代码...",
         location: "位置名称...",
@@ -967,12 +973,12 @@
       extraInputs = {};
 
       let fields = {
-        image:        [{ name: "caption", placeholder: "标注（可选）" }],
-        audio:        [],
-        video:        [{ name: "thumbnail", placeholder: "封面图 URL（可选）" }],
+        image: [{ name: "caption", placeholder: "标注（可选）" }],
+        audio: [],
+        video: [{ name: "thumbnail", placeholder: "封面图 URL（可选）" }],
         product_card: [{ name: "image", placeholder: "图片 URL" }, { name: "price", placeholder: "价格" }, { name: "link", placeholder: "链接（可选）" }],
         code_snippet: [{ name: "language", placeholder: "语言（可选）" }],
-        location:     [{ name: "lat", placeholder: "纬度" }, { name: "lng", placeholder: "经度" }],
+        location: [{ name: "lat", placeholder: "纬度" }, { name: "lng", placeholder: "经度" }],
       };
 
       if (fields[type]) {
@@ -1074,6 +1080,12 @@
 
       currentWebSocket.send(JSON.stringify({ type, body }));
       chatInput.value = "";
+
+      // Clear upload state for media types after sending.
+      if (["image", "audio", "video"].includes(type)) {
+        window._lastUpload = null;
+        chatInput.placeholder = getPlaceholder(type);
+      }
 
       // Reset reply state if user was replying.
       if (replyingTo) {
@@ -1380,52 +1392,52 @@
         content.appendChild(document.createTextNode(body.text || ""));
         break;
       case "image": {
-          let imgUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
-          if (imgUrl) {
-            let img = document.createElement("img");
-            img.className = "msg-image";
-            img.src = imgUrl;
-            img.alt = body.caption || "";
-            img.onerror = () => { img.alt = "[图片加载失败]"; img.style.display = "none"; };
-            content.appendChild(img);
-            if (body.caption) {
-              let cap = document.createElement("div");
-              cap.className = "caption";
-              cap.innerText = body.caption;
-              content.appendChild(cap);
-            }
+        let imgUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
+        if (imgUrl) {
+          let img = document.createElement("img");
+          img.className = "msg-image";
+          img.src = imgUrl;
+          img.alt = body.caption || "";
+          img.onerror = () => { img.alt = "[图片加载失败]"; img.style.display = "none"; };
+          content.appendChild(img);
+          if (body.caption) {
+            let cap = document.createElement("div");
+            cap.className = "caption";
+            cap.innerText = body.caption;
+            content.appendChild(cap);
           }
-          break;
         }
+        break;
+      }
       case "audio": {
-          let mediaUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
-          if (mediaUrl) {
-            let infoParts = [];
-            if (body.filename) infoParts.push("🎤 " + body.filename);
-            if (body.duration) infoParts.push(Math.round(body.duration) + "s");
-            if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
-            let audio = document.createElement("audio");
-            audio.controls = true;
-            audio.src = mediaUrl;
-            content.appendChild(audio);
-          }
-          break;
+        let mediaUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
+        if (mediaUrl) {
+          let infoParts = [];
+          if (body.filename) infoParts.push("🎤 " + body.filename);
+          if (body.duration) infoParts.push(Math.round(body.duration) + "s");
+          if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
+          let audio = document.createElement("audio");
+          audio.controls = true;
+          audio.src = mediaUrl;
+          content.appendChild(audio);
         }
+        break;
+      }
       case "video": {
-          let mediaUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
-          if (mediaUrl) {
-            let infoParts = [];
-            if (body.filename) infoParts.push("🎬 " + body.filename);
-            if (body.duration) infoParts.push(Math.round(body.duration) + "s");
-            if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
-            let vid = document.createElement("video");
-            vid.controls = true;
-            vid.src = mediaUrl;
-            vid.poster = body.thumbnail || "";
-            content.appendChild(vid);
-          }
-          break;
+        let mediaUrl = body.uploadId ? `${location.protocol}//${location.host}/api/file/${body.uploadId}/blob` : "";
+        if (mediaUrl) {
+          let infoParts = [];
+          if (body.filename) infoParts.push("🎬 " + body.filename);
+          if (body.duration) infoParts.push(Math.round(body.duration) + "s");
+          if (infoParts.length) content.appendChild(document.createTextNode(infoParts.join(" · ") + "  "));
+          let vid = document.createElement("video");
+          vid.controls = true;
+          vid.src = mediaUrl;
+          vid.poster = body.thumbnail || "";
+          content.appendChild(vid);
         }
+        break;
+      }
       case "product_card":
         {
           let card = document.createElement("div");
