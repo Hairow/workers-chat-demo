@@ -51,8 +51,8 @@ export async function handleUpload(request, env) {
 
   // Determine type.
   let type = mimeType.startsWith("image/") ? "image"
-            : mimeType.startsWith("video/") ? "video"
-            : "audio";
+    : mimeType.startsWith("video/") ? "video"
+      : "audio";
 
   // Optional duration (seconds) — only meaningful for audio / video.
   let duration = parseFloat(formData.get("duration")) || 0;
@@ -82,12 +82,9 @@ export async function handleUpload(request, env) {
 export async function handleDeleteUpload(id, env) {
   if (!id) return new Response("Missing id", { status: 400 });
 
-  let metadata = await getMetadata(id, env);
-  if (!metadata) return new Response("Upload not found", { status: 404 });
-
   // Delete both metadata and blob records.
   let metaKey = `upload:${id}`;
-  let blobKey = metadata.contentKey;
+  let blobKey = `blob:${id}`;
   await Promise.all([
     env.CHAT_ROOMS.delete(metaKey),
     env.CHAT_ROOMS.delete(blobKey),
