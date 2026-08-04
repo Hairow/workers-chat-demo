@@ -173,14 +173,14 @@ export class ChatRoom {
   // replyTo is an optional field on every type, allowing any message to reference another.
   // replyTo 是所有类型的可选字段，允许任意消息引用另一条消息。
   static MESSAGE_SCHEMAS = {
-    text:       { required: ["text"],                                        optional: ["replyTo"], maxLen: { text: 2048 } },
-    image:      { required: ["url"],      optional: ["caption","replyTo"],    maxLen: { caption: 512 } },
-    audio:      { required: ["url"],      optional: ["duration","replyTo"],   maxLen: {} },
-    video:      { required: ["url"],      optional: ["thumbnail","duration","replyTo"],maxLen: {} },
-    product_card:{required:["title","image","price"],optional:["link","replyTo"],     maxLen: { title: 128, price: 32 } },
-    code_snippet:{required:["code"],      optional: ["language","replyTo"],           maxLen: { code: 4096, language: 32 } },
-    location:   { required: ["lat","lng","name"],                           optional: ["replyTo"], maxLen: { name: 128 } },
-    file:       { required: ["url","filename","size"],                      optional: ["replyTo"], maxLen: { filename: 256 } },
+    text: { required: ["text"], optional: ["replyTo"], maxLen: { text: 2048 } },
+    image: { required: ["url"], optional: ["caption", "replyTo"], maxLen: { caption: 512 } },
+    audio: { required: ["url"], optional: ["duration", "replyTo"], maxLen: {} },
+    video: { required: ["url"], optional: ["thumbnail", "duration", "replyTo"], maxLen: {} },
+    product_card: { required: ["title", "image", "price"], optional: ["link", "replyTo"], maxLen: { title: 128, price: 32 } },
+    code_snippet: { required: ["code"], optional: ["language", "replyTo"], maxLen: { code: 4096, language: 32 } },
+    location: { required: ["lat", "lng", "name"], optional: ["replyTo"], maxLen: { name: 128 } },
+    file: { required: ["url", "filename", "size"], optional: ["replyTo"], maxLen: { filename: 256 } },
   };
 
   // Validate a message according to its type schema.
