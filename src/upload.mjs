@@ -61,6 +61,7 @@ export async function handleUpload(request, env) {
     filename: file.name || "unnamed",
     contentKey: blobKey,
     size: file.size,
+    description: "",
     uploadedAt: Date.now(),
   };
 
