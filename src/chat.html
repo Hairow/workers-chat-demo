@@ -1231,8 +1231,6 @@
         clearUploadBtn.style.display = "inline-flex";
         clearUploadBtn.disabled = false;
 
-        // Show filename in input as hint, clear on type.
-        chatInput.value = result.filename || "";
         chatInput.focus();
       } catch (err) {
         alert("上传失败: " + err.message);
