@@ -289,9 +289,23 @@
       color: var(--text-secondary);
     }
 
-    #upload-btn, #clear-upload-btn {
+    #upload-btn, #upload-loading, #clear-upload-btn {
       display: none;
       margin-left: auto;
+    }
+
+    #upload-loading {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     #upload-btn.uploading,
@@ -722,7 +736,7 @@
     <p>OR</p>
     <button id="go-private">Create a Private Room &raquo;</button>
   </form>
-  <form id="chatroom" action="/fake-form-action">
+  <form id="chatroom" action="/fake-form-action" onsubmit="return false">
     <div id="chatlog">
       <div id="spacer"></div>
     </div>
@@ -738,6 +752,7 @@
       <button type="button" data-type="code_snippet" title="代码片段">&lt;/&gt;</button>
       <button type="button" data-type="location" title="位置">📍</button>
       <button id="upload-btn" type="button" title="上传" style="display:none">📤</button>
+      <span id="upload-loading" style="display:none">⏳</span>
       <button id="clear-upload-btn" type="button" title="取消上传" style="display:none">✕</button>
     </div>
     <div id="reply-bar"><span class="reply-text"></span><span class="cancel-reply">✕</span></div>
@@ -880,16 +895,20 @@
     chatInput.placeholder = "输入消息...";
 
     chatInput.addEventListener("keydown", event => {
-      if (event.keyCode == 38) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        // Enter — send message.
+        event.preventDefault();
+        handleSend();
+      } else if (event.key === "ArrowUp") {
         // up arrow
         chatlog.scrollBy(0, -50);
-      } else if (event.keyCode == 40) {
+      } else if (event.key === "ArrowDown") {
         // down arrow
         chatlog.scrollBy(0, 50);
-      } else if (event.keyCode == 33) {
+      } else if (event.key === "PageUp") {
         // page up
         chatlog.scrollBy(0, -chatlog.clientHeight + 50);
-      } else if (event.keyCode == 34) {
+      } else if (event.key === "PageDown") {
         // page down
         chatlog.scrollBy(0, chatlog.clientHeight - 50);
       }
@@ -903,7 +922,8 @@
         btn.classList.add("active");
         currentMessageType = btn.dataset.type;
 
-        // Show/hide upload/clear button only for media types.
+        // Show/hide upload/loading/clear button only for media types.
+        uploadLoading.style.display = "none";
         if (["image", "audio", "video"].includes(currentMessageType)) {
           if (window._lastUpload) {
             uploadBtn.style.display = "none";
@@ -996,9 +1016,8 @@
       replyBar.classList.remove("show");
     });
 
-    // ── Submit ──────────────────────────────────────────────────
-    chatroom.addEventListener("submit", event => {
-      event.preventDefault();
+    // ── Send message ────────────────────────────────────────────
+    function handleSend() {
       if (!currentWebSocket) return;
 
       let value = chatInput.value.trim();
@@ -1080,7 +1099,7 @@
       Object.values(extraInputs).forEach(inp => { if (inp && inp.value !== undefined) inp.value = ""; });
 
       isAtBottom = true;
-    });
+    }
 
     chatInput.addEventListener("input", event => {
       let max = currentMessageType === "code_snippet" ? 4096 : 2048;
@@ -1114,12 +1133,14 @@
     let fileInput = document.querySelector("#file-input");
     let uploadBtn = document.querySelector("#upload-btn");
     let clearUploadBtn = document.querySelector("#clear-upload-btn");
+    let uploadLoading = document.querySelector("#upload-loading");
 
     uploadBtn.addEventListener("click", () => {
       fileInput.value = ""; // Allow re-uploading the same file.
       fileInput.click();
-      // Show disabled clear button while uploading.
+      // Show loading + disabled clear button while uploading.
       uploadBtn.style.display = "none";
+      uploadLoading.style.display = "inline-flex";
       clearUploadBtn.style.display = "inline-flex";
       clearUploadBtn.disabled = true;
     });
@@ -1132,6 +1153,7 @@
       window._lastUpload = null;
       fileInput.value = "";
       chatInput.value = "";
+      uploadLoading.style.display = "none";
       clearUploadBtn.style.display = "none";
       clearUploadBtn.disabled = false;
       uploadBtn.style.display = "inline-flex";
@@ -1185,7 +1207,8 @@
         // Store last upload result for building message body on submit.
         window._lastUpload = result;
 
-        // Enable clear button after upload completes.
+        // Enable clear button, hide loading after upload completes.
+        uploadLoading.style.display = "none";
         clearUploadBtn.disabled = false;
 
         // Show filename in input as hint, clear on type.
@@ -1193,6 +1216,12 @@
         chatInput.focus();
       } catch (err) {
         alert("上传失败: " + err.message);
+        // Reset UI on error.
+        window._lastUpload = null;
+        uploadLoading.style.display = "none";
+        clearUploadBtn.style.display = "none";
+        clearUploadBtn.disabled = true;
+        uploadBtn.style.display = "inline-flex";
       } finally {
         uploadBtn.classList.remove("uploading");
         uploadBtn.title = originalTitle;
