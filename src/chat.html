@@ -130,6 +130,15 @@
     }
     #msg-toolbar button:hover { color: var(--accent); border-color: var(--accent); }
     #msg-toolbar button.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+    #upload-btn, #clear-upload-btn, .upload-loading { margin-left: auto; }
+
+    .upload-group {
+      margin-left: auto; display: flex; align-items: center; gap: 4px;
+      padding: 2px 6px; border-radius: 14px;
+      background: rgba(0, 113, 227, .06);
+      border: 1px dashed rgba(0, 113, 227, .25);
+    }
+    .upload-group button { margin-left: 0 !important; }
 
     /* ── Reply bar ────────────────────────────── */
     #reply-bar {
@@ -349,11 +358,13 @@
       <button v-for="t in msgTypes" :key="t.type" type="button"
         :class="{ active: currentMsgType === t.type }"
         @click="switchMsgType(t.type)">{{ t.label }}</button>
-      <button v-if="isMediaType" id="upload-btn" type="button" title="上传"
-        v-show="!lastUpload" @click="triggerUpload">📤</button>
-      <span class="upload-loading" v-show="uploading">⏳</span>
-      <button v-if="isMediaType" id="clear-upload-btn" type="button" title="删除上传"
-        v-show="lastUpload" @click="clearUpload">✕</button>
+      <div class="upload-group">
+        <button v-if="isMediaType" id="upload-btn" type="button" title="上传"
+          v-show="!lastUpload" @click="triggerUpload">📤</button>
+        <span class="upload-loading" v-show="uploading">⏳</span>
+        <button v-if="isMediaType" id="clear-upload-btn" type="button" title="删除上传"
+          v-show="lastUpload" @click="clearUpload">✕</button>
+      </div>
     </div>
 
     <!-- Reply bar -->
