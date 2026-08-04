@@ -1293,6 +1293,15 @@
           }
         }
       } else if (data.type && data.body) {
+        //
+        // 消息格式示例:
+        // { type: "text", body: { text: "hello" }, sender: { name: "Alice" }, timestamp: 1234567890 }
+        // { type: "image", body: { uploadId: "abc-123", caption: "描述", filename: "photo.jpg", mimeType: "image/jpeg", size: 102400 }, sender: { name: "Bob" }, timestamp: 1234567890 }
+        // { type: "audio", body: { uploadId: "abc-456", filename: "recording.mp3", mimeType: "audio/mpeg", size: 512000, duration: 60 }, sender: { name: "Carol" }, timestamp: 1234567890 }
+        // { type: "video", body: { uploadId: "abc-789", thumbnail: "https://...", filename: "clip.mp4", mimeType: "video/mp4", size: 2048000, duration: 120 }, sender: { name: "Dave" }, timestamp: 1234567890 }
+        // { type: "product_card", body: { title: "xxx", image: "https://...", price: "99.00", link: "https://..." }, sender: "...", timestamp: ... }
+        // { type: "code_snippet", body: { code: "...", language: "js" }, sender: "...", timestamp: ... }
+        // { type: "location", body: { lat: 22.54, lng: 113.93, name: "深圳" }, sender: "...", timestamp: ... }
         if (data.timestamp > lastSeenTimestamp) {
           addChatMessage(data.sender ? data.sender.name : null, data);
           lastSeenTimestamp = data.timestamp;
@@ -1469,26 +1478,6 @@
           row.innerHTML = "📍 " + (body.name || "");
           if (body.lat && body.lng) {
             row.innerHTML += " (" + body.lat + ", " + body.lng + ")";
-          }
-          content.appendChild(row);
-        }
-        break;
-      case "file":
-        {
-          let row = document.createElement("div");
-          row.className = "file-row";
-          let icon = document.createElement("span");
-          icon.className = "file-icon";
-          icon.textContent = "📄";
-          row.appendChild(icon);
-          let info = document.createElement("span");
-          info.innerHTML =
-            "<strong>" + (body.filename || "file") + "</strong>" +
-            (body.size ? " (" + body.size + ")" : "");
-          row.appendChild(info);
-          if (body.url) {
-            row.style.cursor = "pointer";
-            row.addEventListener("click", () => window.open(body.url, "_blank"));
           }
           content.appendChild(row);
         }
