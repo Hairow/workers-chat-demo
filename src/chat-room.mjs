@@ -176,9 +176,7 @@ export class ChatRoom {
     text: { required: ["text"], optional: ["replyTo"], maxLen: { text: 2048 } },
     image: { required: ["uploadId"], optional: ["filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     audio: { required: ["uploadId"], optional: ["duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
-    video: { required: ["uploadId"], optional: ["thumbnail", "duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
-    product_card: { required: ["title", "image", "price"], optional: ["link", "replyTo"], maxLen: { title: 128, price: 32 } },
-    code_snippet: { required: ["code"], optional: ["language", "replyTo"], maxLen: { code: 4096, language: 32 } },
+    video: { required: ["uploadId"], optional: ["duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     location: { required: ["lat", "lng", "name"], optional: ["replyTo"], maxLen: { name: 128 } },
   };
 
