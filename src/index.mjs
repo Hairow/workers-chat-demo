@@ -284,7 +284,7 @@ async function handleApiRequest(path, request, env) {
 
         // Verify JWT token from query parameter.
         // 从查询参数中校验 JWT。
-        let token = url.searchParams.get("token");
+        let token = newUrl.searchParams.get("token");
         if (!token) {
           return new Response("Missing token", { status: 401 });
         }
