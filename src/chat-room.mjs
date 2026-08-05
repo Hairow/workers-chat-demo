@@ -152,7 +152,7 @@ export class ChatRoom {
     // Create our session and add it to the sessions map.
     // 创建 session 并加入 sessions map。
     let session = { limiterId, limiter, blockedMessages: [], ip };
-    if (verifiedName) session.name = verifiedName;
+
     // attach limiterId, name, ip to the webSocket so they survive hibernation
     // 将 limiterId、ip 附加到 webSocket，使其在休眠时也能保留
     webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip });
@@ -179,6 +179,7 @@ export class ChatRoom {
     // If the user is already named (JWT-auth'd), flush blocked messages and send ready now.
     // 如果用户已命名（JWT 认证），立即刷新阻塞消息并发送 ready。
     if (verifiedName) {
+      session.name = verifiedName;
       for (let msg of session.blockedMessages) {
         webSocket.send(msg);
       }
