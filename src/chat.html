@@ -650,6 +650,17 @@
       },
       methods: {
         // ── Lifecycle ──────────────────────────────
+        // Apply auth data received from parent via postMessage (iframe mode).
+        // 应用从父页面通过 postMessage 接收的认证数据（iframe 模式）。
+        applyParentAuth: function (token, username, roomname) {
+          if (!token || !username) return;
+          this.username = username;
+          this.authToken = token;
+          this.roomname = roomname || 'helloworld';
+          localStorage.setItem('chat-username', this.username);
+          this.$nextTick(this.startChat);
+        },
+
         confirmName: async function () {
           if (!this.username.trim()) return;
           localStorage.setItem('chat-username', this.username);
@@ -961,6 +972,27 @@
         var self = this;
         var saved = localStorage.getItem('chat-username');
         if (saved) this.username = saved;
+
+        // ── postMessage listener (iframe mode) ──
+        // Listen for auth data from the parent page.
+        // When embedded as an iframe, the parent can supply a pre-generated JWT token,
+        // bypassing the manual name-chooser and /api/auth call.
+        // 监听父页面通过 postMessage 传递的认证数据。
+        // 作为 iframe 嵌入时，父页面可以提供预生成的 JWT，跳过手动输入名称和 /api/auth 调用。
+        window.addEventListener('message', function (event) {
+          // Security: only accept messages from the direct parent window.
+          // 安全：仅接受直接父窗口的消息。
+          if (event.source !== window.parent) return;
+
+          var data = event.data;
+          if (!data || typeof data !== 'object') return;
+
+          if (data.type === 'auth' && data.token && data.username) {
+            // Parent supplied JWT + username — skip the name chooser.
+            // 父页面提供了 JWT 和用户名 — 跳过名称输入界面。
+            self.applyParentAuth(data.token, data.username, data.room);
+          }
+        });
 
         // Handle file dialog cancel detection
         window.addEventListener('focus', function () {
