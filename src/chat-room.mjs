@@ -145,7 +145,7 @@ export class ChatRoom {
     // 创建 session 并加入 sessions map。
     let session = { limiterId, limiter, blockedMessages: [], ip };
     // attach limiterId, name, ip to the webSocket so they survive hibernation
-    // 将 limiterId、name、ip 附加到 webSocket，使其在休眠时也能保留
+    // 将 limiterId、ip 附加到 webSocket，使其在休眠时也能保留
     webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip });
     this.sessions.set(webSocket, session);
 
