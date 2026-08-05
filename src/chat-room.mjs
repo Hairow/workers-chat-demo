@@ -132,6 +132,10 @@ export class ChatRoom {
 
   // handleSession() implements our WebSocket-based chat protocol.
   // handleSession() 实现基于 WebSocket 的聊天协议。
+  //
+  // If verifiedName is provided (authenticated via JWT), the session is named immediately and
+  // the client does not need to send a name message. (Only via index.mjs which verifies the token.)
+  // 如果提供了 verifiedName（通过 JWT 认证），session 立即命名，客户端无需发送名称消息。
   async handleSession(webSocket, ip, verifiedName) {
     // Accept our end of the WebSocket. This tells the runtime that we'll be terminating the
     // WebSocket in JavaScript, not sending it elsewhere.
@@ -148,7 +152,7 @@ export class ChatRoom {
     // Create our session and add it to the sessions map.
     // 创建 session 并加入 sessions map。
     let session = { limiterId, limiter, blockedMessages: [], ip };
-
+    if (verifiedName) session.name = verifiedName;
     // attach limiterId, name, ip to the webSocket so they survive hibernation
     // 将 limiterId、ip 附加到 webSocket，使其在休眠时也能保留
     webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip });
@@ -172,7 +176,20 @@ export class ChatRoom {
       session.blockedMessages.push(value);
     });
 
+    // If the user is already named (JWT-auth'd), flush blocked messages and send ready now.
+    // 如果用户已命名（JWT 认证），立即刷新阻塞消息并发送 ready。
+    if (verifiedName) {
+      for (let msg of session.blockedMessages) {
+        webSocket.send(msg);
+      }
+      session.blockedMessages = [];
+      webSocket.send(JSON.stringify({ ready: true, name: verifiedName }));
 
+      // Broadcast join to other users.
+      // 向其他用户广播加入消息。
+      this.broadcast({ joined: verifiedName, ip });
+
+    }
   }
 
   // Message type schemas defining required and optional fields in the `body`.
