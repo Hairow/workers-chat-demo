@@ -259,6 +259,7 @@ export class ChatRoom {
 
       let data = JSON.parse(msg);
 
+      //暂时不起作用，客户端不需要发送name
       if (!session.name) {
         // The first message is always the user info with their name.
         // 第一条消息始终是带用户名的用户信息。
