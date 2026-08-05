@@ -634,6 +634,7 @@
         lastTs: 0,
         wroteWelcome: false,
         ws: null,
+        authToken: '',
         _fileDialogOpen: false,
         uploading: false,
       },
@@ -649,9 +650,30 @@
       },
       methods: {
         // ── Lifecycle ──────────────────────────────
-        confirmName: function () {
+        confirmName: async function () {
           if (!this.username.trim()) return;
           localStorage.setItem('chat-username', this.username);
+
+          // Request a JWT from the auth endpoint.
+          // 从认证端点请求 JWT。
+          try {
+            var res = await fetch('/api/auth', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: this.username })
+            });
+            if (!res.ok) {
+              var err = await res.text();
+              alert('Auth failed: ' + err);
+              return;
+            }
+            var data = await res.json();
+            this.authToken = data.token;
+          } catch (e) {
+            alert('Auth request failed: ' + e.message);
+            return;
+          }
+
           this.roomname = 'helloworld';
           this.$nextTick(this.startChat);
         },
@@ -676,7 +698,9 @@
         join: function () {
           var self = this;
           var wss = document.location.protocol === 'http:' ? 'ws://' : 'wss://';
-          var ws = new WebSocket(wss + this.hostname + '/api/room/' + this.roomname + '/websocket');
+          var ws = new WebSocket(
+            wss + this.hostname + '/api/room/' + this.roomname + '/websocket?token=' + encodeURIComponent(this.authToken)
+          );
           var rejoined = false;
           var startTime = Date.now();
 
@@ -692,7 +716,8 @@
 
           ws.addEventListener('open', function () {
             self.ws = ws;
-            ws.send(JSON.stringify({ name: self.username }));
+            // Name is already verified via JWT — no need to send a name message.
+            // 用户名已通过 JWT 验证，无需再发送名称消息。
           });
 
           ws.addEventListener('message', function (event) {

@@ -80,6 +80,7 @@
 import HTML from "./chat.html";
 import { handleErrors } from "./utils.mjs";
 import { handleUpload, handleDeleteUpload, handleFileMeta, handleFileBlob } from "./upload.mjs";
+import { signToken, verifyToken } from "./auth.mjs";
 
 // Re-export Durable Object classes so that Cloudflare can discover them.
 // 重新导出 Durable Object 类，以便 Cloudflare 可以发现它们。
@@ -167,6 +168,24 @@ async function handleApiRequest(path, request, env) {
       return Response.json(result);
     }
 
+    case "auth": {
+      // POST /api/auth — issue a JWT for the given username.
+      // POST /api/auth — 为指定用户名签发 JWT。
+      if (request.method !== "POST") {
+        return new Response("Method not allowed", { status: 405 });
+      }
+      let body;
+      try { body = await request.json(); } catch (e) {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+      let name = (body.name || "").trim();
+      if (!name || name.length > 32) {
+        return new Response("Invalid name", { status: 400 });
+      }
+      let token = await signToken(env, name);
+      return Response.json({ token });
+    }
+
     case "room": {
       // Request for `/api/room/...`.
       // 请求 `/api/room/...`。
@@ -252,16 +271,38 @@ async function handleApiRequest(path, request, env) {
       // 但请求总是发送给该对象，与请求的 URL 无关。 
       // 真正的聊天室是在fetch第一次被调用时，Cloudflare 才在全球边缘节点上启动一个 ChatRoom 实例
 
-      // Store room name in KV when someone joins via WebSocket (i.e. room becomes active).
-      // Key format: room:<id>-<name> for public rooms, room:<id> for private rooms.
-      // 当有人通过 WebSocket 加入房间时，将房间名写入 KV（即房间活跃时注册）。
-      // Key 格式：公开房间 room:<id>-<name>，私密房间 room:<id>。
+      // For WebSocket connections, verify JWT and attach the verified username.
+      // 对 WebSocket 连接，校验 JWT 并附加已验证的用户名。
       if (path[2] === "websocket") {
+        // Store room name in KV when someone joins (i.e. room becomes active).
+        // 当有人通过 WebSocket 加入房间时，将房间名写入 KV。
         let hex = id.toString();
         let key = name.match(/^[0-9a-f]{64}$/)
           ? `room:${hex}`           // private: name is the 64-char hex ID
           : `room:${hex}-${name}`;  // public: store both id and name
         env.CHAT_ROOMS.put(key, "1").catch(() => { });
+
+        // Verify JWT token from query parameter.
+        // 从查询参数中校验 JWT。
+        let token = url.searchParams.get("token");
+        if (!token) {
+          return new Response("Missing token", { status: 401 });
+        }
+        let payload;
+        try {
+          payload = await verifyToken(env, token);
+        } catch (e) {
+          return new Response("Invalid or expired token", { status: 401 });
+        }
+        if (!payload.sub) {
+          return new Response("Invalid token: missing subject", { status: 401 });
+        }
+
+        // Forward the request with the verified username in a header.
+        // 将请求转发给 DO，并附加已验证的用户名到头中。
+        let verifiedRequest = new Request(newUrl, request);
+        verifiedRequest.headers.set("X-Verified-Name", payload.sub);
+        return roomObject.fetch(newUrl, verifiedRequest);
       }
 
       return roomObject.fetch(newUrl, request);

@@ -101,6 +101,10 @@ export class ChatRoom {
           // 获取客户端 IP 地址用于限流。
           let ip = request.headers.get("CF-Connecting-IP");
 
+          // Read the verified username from the header set by the Worker.
+          // 从 Worker 设置的头中读取已验证的用户名。
+          let verifiedName = request.headers.get("X-Verified-Name") || null;
+
           // To accept the WebSocket request, we create a WebSocketPair (which is like a socketpair,
           // i.e. two WebSockets that talk to each other), we return one end of the pair in the
           // response, and we operate on the other end. Note that this API is not part of the
@@ -113,7 +117,7 @@ export class ChatRoom {
 
           // We're going to take pair[1] as our end, and return pair[0] to the client.
           // 我们将 pair[1] 作为服务端，pair[0] 返回给客户端。
-          await this.handleSession(pair[1], ip);
+          await this.handleSession(pair[1], ip, verifiedName);
 
           // Now we return the other end of the pair to the client.
           // 现在将 pair 的另一端返回给客户端。
@@ -128,7 +132,7 @@ export class ChatRoom {
 
   // handleSession() implements our WebSocket-based chat protocol.
   // handleSession() 实现基于 WebSocket 的聊天协议。
-  async handleSession(webSocket, ip) {
+  async handleSession(webSocket, ip, verifiedName) {
     // Accept our end of the WebSocket. This tells the runtime that we'll be terminating the
     // WebSocket in JavaScript, not sending it elsewhere.
     // 接受 WebSocket 的服务端。这告诉运行时我们会在 JavaScript 中处理 WebSocket，而不是转发到其他地方。
@@ -144,6 +148,7 @@ export class ChatRoom {
     // Create our session and add it to the sessions map.
     // 创建 session 并加入 sessions map。
     let session = { limiterId, limiter, blockedMessages: [], ip };
+
     // attach limiterId, name, ip to the webSocket so they survive hibernation
     // 将 limiterId、ip 附加到 webSocket，使其在休眠时也能保留
     webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip });
@@ -166,6 +171,8 @@ export class ChatRoom {
     backlog.forEach(value => {
       session.blockedMessages.push(value);
     });
+
+
   }
 
   // Message type schemas defining required and optional fields in the `body`.

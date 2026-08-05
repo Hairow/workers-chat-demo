@@ -9,6 +9,9 @@
     "deploy": "wrangler deploy",
     "tail": "wrangler tail"
   },
+  "dependencies": {
+    "jose": "^5.0.0"
+  },
   "devDependencies": {
     "wrangler": "^4.111.0"
   }
