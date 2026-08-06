@@ -751,6 +751,17 @@
                 }
               }
             } else if (data.type && data.body) {
+              // Calculate and log the time difference between message send and receipt.
+              // 计算并打印消息发送到接收的时间差。
+              var now = Date.now();
+              var delta = now - data.timestamp;
+              if (data.timestamp) {
+                console.log(
+                  '[delta] %c' + delta + 'ms%c | type=%c' + data.type + '%c sender=%c' + (data.sender ? data.sender.name : '?'),
+                  'color:#ff6b35;font-weight:bold', '', 'color:#0071e3', '', 'color:#34c759'
+                );
+              }
+
               if (data.timestamp > self.lastTs) {
                 var msg = {
                   type: data.type,

@@ -150,18 +150,28 @@ export class ChatRoom {
       err => webSocket.close(1011, err.stack));
 
     // Create our session and add it to the sessions map.
+    // Apply the verified name BEFORE any async operation, so that webSocketMessage
+    // (which may fire during await below) sees a named session and skips the
+    // "first message = name" fallback that would overwrite it as "anonymous".
     // 创建 session 并加入 sessions map。
+    // 在所有异步操作之前应用已验证的用户名，这样在 await 期间触发的
+    // webSocketMessage 会看到已命名的 session，跳过会把名字覆盖为 "anonymous" 的降级逻辑。
     let session = { limiterId, limiter, blockedMessages: [], ip };
+    if (verifiedName) {
+      session.name = verifiedName;
+    }
 
     // attach limiterId, name, ip to the webSocket so they survive hibernation
     // 将 limiterId、ip 附加到 webSocket，使其在休眠时也能保留
-    webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip });
+    webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip, name: session.name });
     this.sessions.set(webSocket, session);
 
-    // Queue "join" messages for all online users, to populate the client's roster.
-    // 为所有在线用户排队 "join" 消息，以填充客户端的在线名单。
+    // Queue "join" messages for all OTHER online users, to populate the client's roster.
+    // The new session itself is excluded — its own join is broadcast separately below.
+    // 为所有其他在线用户排队 "join" 消息，以填充客户端的在线名单。
+    // 排除新会话自身 — 自己的 join 由后面的 broadcast 单独发送。
     for (let otherSession of this.sessions.values()) {
-      if (otherSession.name) {
+      if (otherSession.name && otherSession !== session) {
         session.blockedMessages.push(JSON.stringify({ joined: otherSession.name, ip: otherSession.ip }));
       }
     }
@@ -179,7 +189,6 @@ export class ChatRoom {
     // If the user is already named (JWT-auth'd), flush blocked messages and send ready now.
     // 如果用户已命名（JWT 认证），立即刷新阻塞消息并发送 ready。
     if (verifiedName) {
-      session.name = verifiedName;
       for (let msg of session.blockedMessages) {
         webSocket.send(msg);
       }
