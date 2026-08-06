@@ -192,7 +192,7 @@ export class ChatRoom {
       for (let msg of session.blockedMessages) {
         webSocket.send(msg);
       }
-      session.blockedMessages = [];
+      delete session.blockedMessages;
       webSocket.send(JSON.stringify({ ready: true, name: verifiedName }));
 
       // Broadcast join to other users.
@@ -404,15 +404,24 @@ export class ChatRoom {
     let quitters = [];
     this.sessions.forEach((session, webSocket) => {
       if (session.name) {
-        try {
-          webSocket.send(message);
-        } catch (err) {
-          // Whoops, this connection is dead. Remove it from the map and arrange to notify
-          // everyone below.
-          // 糟糕，这个连接已断开。从 map 中移除并安排通知所有人。
-          session.quit = true;
-          quitters.push(session);
-          this.sessions.delete(webSocket);
+        if (session.blockedMessages) {
+          // Session is named (JWT) but blockedMessages haven't been flushed yet.
+          // Queue here so that real-time messages don't jump ahead of history,
+          // which would cause the client's timestamp-based dedup to discard history.
+          // Session 已命名但 blockedMessages 尚未刷新，排队以保证实时消息
+          // 不会插在历史消息前面，避免客户端时间戳去重丢弃历史。
+          session.blockedMessages.push(message);
+        } else {
+          try {
+            webSocket.send(message);
+          } catch (err) {
+            // Whoops, this connection is dead. Remove it from the map and arrange to notify
+            // everyone below.
+            // 糟糕，这个连接已断开。从 map 中移除并安排通知所有人。
+            session.quit = true;
+            quitters.push(session);
+            this.sessions.delete(webSocket);
+          }
         }
       } else {
         // This session hasn't sent the initial user info message yet, so we're not sending them
