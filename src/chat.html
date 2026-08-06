@@ -700,14 +700,13 @@
             return;
           }
           document.location.hash = '#' + this.roomname;
-          this.$nextTick(function () {
+          this.$nextTick(() => {
             this.join();
             if (this.$refs.chatInput) this.$refs.chatInput.focus();
           });
         },
 
         join: function () {
-          var self = this;
           var wss = document.location.protocol === 'http:' ? 'ws://' : 'wss://';
           var ws = new WebSocket(
             wss + this.hostname + '/api/room/' + this.roomname + '/websocket?token=' + encodeURIComponent(this.authToken)
@@ -715,39 +714,39 @@
           var rejoined = false;
           var startTime = Date.now();
 
-          var rejoin = function () {
+          var rejoin = () => {
             if (rejoined) return;
             rejoined = true;
-            self.ws = null;
-            self.roster = [];
+            this.ws = null;
+            this.roster = [];
             var elapsed = Date.now() - startTime;
             var delay = elapsed < 10000 ? 10000 - elapsed : 0;
-            setTimeout(function () { self.join(); }, delay);
+            setTimeout(() => { this.join(); }, delay);
           };
 
-          ws.addEventListener('open', function () {
-            self.ws = ws;
+          ws.addEventListener('open', () => {
+            this.ws = ws;
             // Name is already verified via JWT — no need to send a name message.
             // 用户名已通过 JWT 验证，无需再发送名称消息。
           });
 
-          ws.addEventListener('message', function (event) {
+          ws.addEventListener('message', (event) => {
             var data = JSON.parse(event.data);
             if (data.error) {
-              self.addSysMsg('* Error: ' + data.error);
+              this.addSysMsg('* Error: ' + data.error);
             } else if (data.joined) {
-              self.roster.push({ name: data.joined, ip: data.ip || '' });
+              this.roster.push({ name: data.joined, ip: data.ip || '' });
             } else if (data.quit) {
-              self.roster = self.roster.filter(function (u) { return u.name !== data.quit; });
+              this.roster = this.roster.filter((u) => { return u.name !== data.quit; });
             } else if (data.ready) {
-              if (!self.wroteWelcome) {
-                self.wroteWelcome = true;
-                self.addSysMsg('* This is a demo app built with Cloudflare Workers Durable Objects. Source: https://github.com/cloudflare/workers-chat-demo');
-                self.addSysMsg('* WARNING: Participants are random internet users. Names are not authenticated. Chat history is saved.');
-                if (self.roomname.length === 64) {
-                  self.addSysMsg('* Private room. Share the URL to invite others.');
+              if (!this.wroteWelcome) {
+                this.wroteWelcome = true;
+                this.addSysMsg('* This is a demo app built with Cloudflare Workers Durable Objects. Source: https://github.com/cloudflare/workers-chat-demo');
+                this.addSysMsg('* WARNING: Participants are random internet users. Names are not authenticated. Chat history is saved.');
+                if (this.roomname.length === 64) {
+                  this.addSysMsg('* Private room. Share the URL to invite others.');
                 } else {
-                  self.addSysMsg('* Welcome to #' + self.roomname + '. Say hi!');
+                  this.addSysMsg('* Welcome to #' + this.roomname + '. Say hi!');
                 }
               }
             } else if (data.type && data.body) {
@@ -762,16 +761,16 @@
                 );
               }
 
-              if (data.timestamp > self.lastTs) {
+              if (data.timestamp > this.lastTs) {
                 var msg = {
                   type: data.type,
                   body: data.body,
                   name: data.sender ? data.sender.name : 'unknown',
                   ts: data.timestamp,
                 };
-                self.chatMessages.push(msg);
-                self.lastTs = data.timestamp;
-                self.scrollToBottom();
+                this.chatMessages.push(msg);
+                this.lastTs = data.timestamp;
+                this.scrollToBottom();
               }
             }
           });
@@ -786,7 +785,6 @@
           var type = this.currentMsgType;
           var body = {};
           var inputText = this.chatInputText.trim();
-          var self = this;
 
           switch (type) {
             case 'text':
@@ -835,7 +833,7 @@
         // ── Message types ──────────────────────────
         switchMsgType: function (type) {
           this.currentMsgType = type;
-          this.$nextTick(function () {
+          this.$nextTick(() => {
             if (type === 'text' && this.$refs.chatInput) this.$refs.chatInput.focus();
           });
         },
@@ -849,19 +847,17 @@
           fi.click();
         },
         clearUpload: function () {
-          var self = this;
           var id = this.lastUpload && this.lastUpload.id;
           var p = id
             ? fetch('/api/file/' + encodeURIComponent(id), { method: 'DELETE' })
             : Promise.resolve();
-          p.then(function () {
-            self.lastUpload = null;
-            self.chatInputText = '';
-            if (self.$refs.fileInput) self.$refs.fileInput.value = '';
+          p.then(() => {
+            this.lastUpload = null;
+            this.chatInputText = '';
+            if (this.$refs.fileInput) this.$refs.fileInput.value = '';
           });
         },
         onFileSelected: function () {
-          var self = this;
           this._fileDialogOpen = false;
           var fileInput = this.$refs.fileInput;
           var file = fileInput && fileInput.files[0];
@@ -875,34 +871,34 @@
 
           var durationP = Promise.resolve(0);
           if (file.type.startsWith('video/') || file.type.startsWith('audio/')) {
-            durationP = new Promise(function (resolve) {
+            durationP = new Promise((resolve) => {
               var el = document.createElement(file.type.startsWith('video/') ? 'video' : 'audio');
               el.preload = 'metadata';
-              el.onloadedmetadata = function () { resolve(el.duration || 0); };
-              el.onerror = function () { resolve(0); };
+              el.onloadedmetadata = () => { resolve(el.duration || 0); };
+              el.onerror = () => { resolve(0); };
               el.src = URL.createObjectURL(file);
             });
           }
 
-          durationP.then(function (duration) {
+          durationP.then((duration) => {
             var fd = new FormData();
             fd.append('file', file);
             if (duration > 0) fd.append('duration', duration);
-            return fetch('/api/upload', { method: 'POST', body: fd }).then(function (r) {
-              if (!r.ok) return r.text().then(function (t) { throw new Error(t); });
+            return fetch('/api/upload', { method: 'POST', body: fd }).then((r) => {
+              if (!r.ok) return r.text().then((t) => { throw new Error(t); });
               return r.json();
-            }).then(function (result) {
-              self.lastUpload = result;
-              self.currentMsgType = result.type;
-              self.chatInputText = result.filename;
-              self.uploading = false;
-              self.$nextTick(function () {
-                if (self.$refs.chatInput) self.$refs.chatInput.focus();
+            }).then((result) => {
+              this.lastUpload = result;
+              this.currentMsgType = result.type;
+              this.chatInputText = result.filename;
+              this.uploading = false;
+              this.$nextTick(() => {
+                if (this.$refs.chatInput) this.$refs.chatInput.focus();
               });
             });
-          }).catch(function (err) {
-            self.uploading = false;
-            self.lastUpload = null;
+          }).catch((err) => {
+            this.uploading = false;
+            this.lastUpload = null;
             alert('上传失败: ' + err.message);
           });
         },
@@ -943,10 +939,9 @@
           return location.protocol + '//' + location.host + '/api/file/' + uploadId + '/blob';
         },
         scrollToBottom: function () {
-          var self = this;
           if (this.isAtBottom) {
-            this.$nextTick(function () {
-              var el = self.$refs.chatlog;
+            this.$nextTick(() => {
+              var el = this.$refs.chatlog;
               if (el) el.scrollTop = el.scrollHeight;
             });
           }
@@ -980,7 +975,6 @@
         },
       },
       mounted: function () {
-        var self = this;
         var saved = localStorage.getItem('chat-username');
         if (saved) this.username = saved;
 
@@ -990,7 +984,7 @@
         // bypassing the manual name-chooser and /api/auth call.
         // 监听父页面通过 postMessage 传递的认证数据。
         // 作为 iframe 嵌入时，父页面可以提供预生成的 JWT，跳过手动输入名称和 /api/auth 调用。
-        window.addEventListener('message', function (event) {
+        window.addEventListener('message', (event) => {
           // Security: only accept messages from the direct parent window.
           // 安全：仅接受直接父窗口的消息。
           if (event.source !== window.parent) return;
@@ -1001,29 +995,29 @@
           if (data.type === 'auth' && data.token && data.username) {
             // Parent supplied JWT + username — skip the name chooser.
             // 父页面提供了 JWT 和用户名 — 跳过名称输入界面。
-            self.applyParentAuth(data.token, data.username, data.room);
+            this.applyParentAuth(data.token, data.username, data.room);
           }
         });
 
         // Handle file dialog cancel detection
-        window.addEventListener('focus', function () {
-          if (self._fileDialogOpen && self.$refs.fileInput && self.$refs.fileInput.files.length === 0 && !self.lastUpload) {
-            self.uploading = false;
+        window.addEventListener('focus', () => {
+          if (this._fileDialogOpen && this.$refs.fileInput && this.$refs.fileInput.files.length === 0 && !this.lastUpload) {
+            this.uploading = false;
           }
-          self._fileDialogOpen = false;
+          this._fileDialogOpen = false;
         });
 
         // Handle mobile keyboard resize
         if ('visualViewport' in window) {
-          window.visualViewport.addEventListener('resize', function () {
-            if (self.isAtBottom) {
-              var el = self.$refs.chatlog;
+          window.visualViewport.addEventListener('resize', () => {
+            if (this.isAtBottom) {
+              var el = this.$refs.chatlog;
               if (el) el.scrollBy(0, 1e8);
             }
           });
         }
 
-        this.$nextTick(function () {
+        this.$nextTick(() => {
           if (this.$refs.nameInput) this.$refs.nameInput.focus();
         });
       },
