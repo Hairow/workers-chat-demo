@@ -3,3 +3,6 @@ metadata.json
 
 .wrangler
 node_modules
+.codegraph
+.env
+.env.local
