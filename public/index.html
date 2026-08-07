@@ -487,6 +487,93 @@
             margin-left: 4px;
             animation: spin 1s linear infinite;
         }
+
+        /* ── WebRTC video overlay ─────────────────── */
+        #videoContainer {
+            position: fixed;
+            z-index: 20;
+            inset: 0;
+            background: rgba(0, 0, 0, .88);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        #videoContainer video {
+            border-radius: 12px;
+            background: #000;
+            box-shadow: var(--shadow-lg);
+        }
+
+        #remoteVideo {
+            width: min(90vw, 720px);
+            max-height: 60vh;
+            object-fit: cover;
+        }
+
+        #localVideo {
+            width: min(30vw, 240px);
+            max-height: 20vh;
+            object-fit: cover;
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            border: 2px solid rgba(255,255,255,.3);
+        }
+
+        #hangupBtn {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 48px;
+            padding: 0 32px;
+            font-size: 15px;
+            font-family: inherit;
+            font-weight: 600;
+            color: #fff;
+            background: var(--danger);
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(255,59,48,.4);
+            transition: background var(--transition), transform var(--transition);
+        }
+
+        #hangupBtn:hover {
+            background: #e0352b;
+            transform: translateX(-50%) scale(1.04);
+        }
+
+        /* ── Roster call button ───────────────────── */
+        .roster-user {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .call-btn {
+            flex-shrink: 0;
+            height: 22px;
+            padding: 0 8px;
+            font-size: 11px;
+            font-family: inherit;
+            font-weight: 500;
+            color: var(--accent);
+            background: rgba(0,113,227,.08);
+            border: 1px solid rgba(0,113,227,.2);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .call-btn:hover {
+            background: var(--accent);
+            color: #fff;
+        }
     </style>
 </head>
 
@@ -568,7 +655,9 @@
             </button>
             <div id="roster" :class="{ open: rosterPanelOpen }">
                 <p v-for="user in roster" :key="user.name" class="roster-user" :data-ip="user.ip">
-                    {{ user.name }}{{ user.ip ? ' (' + user.ip + ')' : '' }}
+                    <span>{{ user.name }}{{ user.ip ? ' (' + user.ip + ')' : '' }}</span>
+                    <button v-if="user.name !== username && !inCall" class="call-btn"
+                        @click="callUser(user)">📞</button>
                 </p>
                 <p v-if="!roster.length" style="color:var(--text-secondary);font-size:12px;">暂无用户</p>
             </div>
@@ -607,16 +696,11 @@
             <img :src="previewUrl" @click.stop>
         </div>
 
-        <!-- 🆕 新增视频通话区域 -->
-        <div id="videoContainer" style="display:none;">
-            <video id="localVideo" autoplay muted></video>
-            <video id="remoteVideo" autoplay></video>
-        </div>
-
-        <!-- 🆕 新增控制按钮 -->
-        <div id="callControls">
-            <button onclick="startCall()">发起通话</button>
-            <button onclick="hangup()" style="display:none;" id="hangupBtn">挂断</button>
+        <!-- 视频通话 overlay -->
+        <div id="videoContainer">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <video id="localVideo"  autoplay muted   playsinline></video>
+            <button id="hangupBtn" type="button" @click="hangupCall">挂断</button>
         </div>
 
     </div>

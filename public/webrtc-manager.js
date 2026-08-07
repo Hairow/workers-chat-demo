@@ -1,5 +1,5 @@
 // webrtc-manager.js
-import { webrtcDetector } from './webrtc-detect.js';
+// 注意：webrtc-detect.js 通过 <script> 加载，webrtcDetector 为全局变量
 
 class WebRTCManager {
     constructor(ws, roomId, userId, userName) {
@@ -10,8 +10,9 @@ class WebRTCManager {
         this.pc = null;
         this.localStream = null;
         this.remoteStream = null;
-        this.isCalling = false;
-
+        this.isCalling = false;       // true = 主叫方已发出呼叫（等待或已建立）
+        this.calleeUserId = null;     // 主叫方记录被叫方 userId
+        this.pendingCallFrom = null;  // 被叫方记录主叫方 userId
 
         // ICE 服务器配置（生产环境建议用自己的 TURN）
         this.iceServers = {
@@ -26,14 +27,18 @@ class WebRTCManager {
     init() {
         this.ws.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
-            if (data.type == 'incoming-call') {
-                if (this.checkWebRtc() == false) return;
+            const webrtcTypes = [
+                'incoming-call', 'call-accepted', 'call-rejected',
+                'webrtc-offer', 'webrtc-answer', 'webrtc-ice', 'peer-hangup'
+            ];
+            if (webrtcTypes.includes(data.type)) {
+                this.handleSignalingMessage(data);
             }
-            this.handleSignalingMessage(data);
         });
     }
 
-    checkWebRtc() {
+    // === 检查 WebRTC 能力（async） ===
+    async checkWebRtc() {
         const detectResult = await webrtcDetector.fullDetect();
         if (!detectResult.webRTC) {
             this.showError('您的浏览器不支持 WebRTC，请使用最新版的 Chrome、Firefox 或 Edge');
@@ -43,26 +48,23 @@ class WebRTCManager {
         const hasVP8 = codecs.video.some(c => c.name === 'VP8' && c.supported);
         if (!hasVP8) {
             console.warn('⚠️ VP8 编解码器不支持，视频通话可能不可用');
-            return false;
+            // 仅警告，不阻止（部分浏览器用 H264 也可互通）
         }
         // 检查摄像头权限
         if (webrtcDetector.capabilities.permissions.camera === 'denied') {
             this.showError('摄像头权限被拒绝，请到浏览器设置中允许访问');
             return false;
         }
-
         // 检查麦克风权限
         if (webrtcDetector.capabilities.permissions.microphone === 'denied') {
             this.showError('麦克风权限被拒绝，请到浏览器设置中允许访问');
             return false;
         }
-
         // 检查是否有设备
         if (webrtcDetector.capabilities.mediaDevices.cameras.length === 0) {
             this.showError('未检测到摄像头设备');
             return false;
         }
-
         if (webrtcDetector.capabilities.mediaDevices.microphones.length === 0) {
             this.showError('未检测到麦克风设备');
             return false;
@@ -74,12 +76,21 @@ class WebRTCManager {
     async handleSignalingMessage(data) {
         switch (data.type) {
             case 'incoming-call':
-                // 有人呼叫你
+                // 有人呼叫你：先检查 WebRTC 能力
+                if (!(await this.checkWebRtc())) return;
                 this.showIncomingCall(data);
                 break;
+
             case 'call-accepted':
-                //对方接受呼叫
-                this.handleCallAccept(data)
+                // 对方接受呼叫，主叫方开始建立 PeerConnection
+                await this.handleCallAccept(data);
+                break;
+
+            case 'call-rejected':
+                // 对方拒绝呼叫
+                this.handleCallRejected(data);
+                break;
+
             case 'webrtc-offer':
                 // 收到 Offer（你是被叫方）
                 await this.handleOffer(data);
@@ -97,7 +108,7 @@ class WebRTCManager {
 
             case 'peer-hangup':
                 // 对方挂断
-                this.hangup(true); // 被动挂断
+                this.hangup(true);
                 break;
         }
     }
@@ -105,19 +116,21 @@ class WebRTCManager {
     // === 发起通话 ===
     async startCallUser(targetUserId) {
         if (this.isCalling) return;
+        if (!(await this.checkWebRtc())) return;
 
-        if (this.checkWebRtc() == false) return;
+        this.calleeUserId = targetUserId;  // 记录被叫方
+        this.isCalling = true;
 
         // 通知对方有人呼叫
         this.ws.send(JSON.stringify({
             type: 'call-user',
             body: {
                 targetUserId: targetUserId,
-                fromUserName: this.userId
+                fromUserName: this.userName   // 修正：使用 userName 而非 userId
             }
         }));
 
-
+        this.showCallingUI(targetUserId);
     }
 
     // === 接受通话（被叫方） ===
@@ -139,12 +152,12 @@ class WebRTCManager {
                 this.pc.addTrack(track, this.localStream);
             });
 
-            // 注意：此时还没有 remote description，等收到 Offer 后再处理
+            // 记录主叫方 userId，等收到 Offer 后再处理
             this.pendingCallFrom = fromUserId;
-            this.isCalling = true;
+            this.isCalling = false;  // 被叫方不置 isCalling=true，由 handleOffer 后决定
             this.showCallUI(true);
 
-            // call-accepted
+            // 发送 call-accepted
             this.ws.send(JSON.stringify({
                 type: 'call-accepted',
                 body: {
@@ -155,12 +168,69 @@ class WebRTCManager {
 
         } catch (error) {
             console.error('Accept call error:', error);
+            this.showError('无法访问摄像头/麦克风：' + error.message);
         }
     }
 
-    // === 处理 Offer ===
+    // === 处理 call-accepted（主叫方收到被叫方接受）===
+    async handleCallAccept(data) {
+        const fromUserId = data.body.fromUserId;
+        const callId = data.body.callId;
+
+        try {
+            // 1. 获取本地媒体流
+            this.localStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+            document.getElementById('localVideo').srcObject = this.localStream;
+
+            // 2. 创建 PeerConnection
+            this.pc = new RTCPeerConnection(this.iceServers);
+            this.setupPeerConnection();
+
+            // 3. 添加本地流
+            this.localStream.getTracks().forEach(track => {
+                this.pc.addTrack(track, this.localStream);
+            });
+
+            // 4. 创建 Offer
+            const offer = await this.pc.createOffer();
+            await this.pc.setLocalDescription(offer);
+
+            // 5. 通过 DO 发送 Offer 给被叫方
+            this.ws.send(JSON.stringify({
+                type: 'webrtc-offer',
+                body: {
+                    targetUserId: fromUserId,
+                    callId: callId,
+                    sdp: this.pc.localDescription
+                }
+            }));
+
+            this.showCallUI(true);
+        } catch (error) {
+            console.error('handleCallAccept error:', error);
+            this.showError('建立通话失败：' + error.message);
+        }
+    }
+
+    // === 处理对方拒绝呼叫 ===
+    handleCallRejected(data) {
+        this.isCalling = false;
+        this.calleeUserId = null;
+        alert('对方拒绝了通话请求');
+        this.showCallUI(false);
+    }
+
+    // === 处理 Offer（被叫方收到主叫方的 Offer）===
     async handleOffer(data) {
-        const fromUserId = data.body.fromUserId
+        const fromUserId = data.body.fromUserId;  // 修正：从 data.body 取
+
+        if (!this.pc) {
+            console.error('收到 Offer 但 PeerConnection 未初始化');
+            return;
+        }
 
         await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
 
@@ -171,13 +241,14 @@ class WebRTCManager {
         this.ws.send(JSON.stringify({
             type: 'webrtc-answer',
             body: {
-                targetUserId: data.fromUserId,
+                targetUserId: fromUserId,   // 修正：使用 fromUserId
+                callId: data.body.callId,
                 sdp: this.pc.localDescription,
             }
         }));
     }
 
-    // === 处理 Answer ===
+    // === 处理 Answer（主叫方收到被叫方的 Answer）===
     async handleAnswer(data) {
         if (!this.pc) return;
         await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
@@ -209,10 +280,13 @@ class WebRTCManager {
         // 收集 ICE Candidate
         this.pc.onicecandidate = (event) => {
             if (event.candidate) {
+                // 主叫方（isCalling=true）发给被叫方（calleeUserId）
+                // 被叫方（isCalling=false）发给主叫方（pendingCallFrom）
+                const targetUserId = this.isCalling ? this.calleeUserId : this.pendingCallFrom;
                 this.ws.send(JSON.stringify({
                     type: 'webrtc-ice',
                     body: {
-                        targetUserId: this.isCalling ? this.pendingCallFrom : this.calleeUserId,
+                        targetUserId: targetUserId,
                         candidate: event.candidate,
                     }
                 }));
@@ -231,6 +305,17 @@ class WebRTCManager {
 
     // === 挂断 ===
     hangup(isRemote = false) {
+        // 通知对方（如果不是被动挂断）
+        if (!isRemote) {
+            const targetUserId = this.isCalling ? this.calleeUserId : this.pendingCallFrom;
+            if (targetUserId) {
+                this.ws.send(JSON.stringify({
+                    type: 'hangup',
+                    body: { targetUserId }
+                }));
+            }
+        }
+
         if (this.pc) {
             this.pc.close();
             this.pc = null;
@@ -243,34 +328,57 @@ class WebRTCManager {
 
         this.remoteStream = null;
         this.isCalling = false;
+        this.calleeUserId = null;
+        this.pendingCallFrom = null;
 
-        document.getElementById('localVideo').srcObject = null;
-        document.getElementById('remoteVideo').srcObject = null;
+        const lv = document.getElementById('localVideo');
+        const rv = document.getElementById('remoteVideo');
+        if (lv) lv.srcObject = null;
+        if (rv) rv.srcObject = null;
 
         this.showCallUI(false);
-
-        // 通知对方（如果不是被动挂断）
-        if (!isRemote) {
-            this.ws.send(JSON.stringify({
-                type: 'hangup',
-                body: {
-                    targetUserId: this.pendingCallFrom || this.calleeUserId
-                }
-            }));
-        }
     }
 
     // === UI 控制 ===
-    showCallUI(isCalling) {
-        document.getElementById('videoContainer').style.display = isCalling ? 'flex' : 'none';
-        document.getElementById('hangupBtn').style.display = isCalling ? 'inline' : 'none';
-        document.getElementById('callControls').style.display = isCalling ? 'none' : 'block';
+    showCallUI(active) {
+        const vc = document.getElementById('videoContainer');
+        const hb = document.getElementById('hangupBtn');
+        const cc = document.getElementById('callControls');
+        if (vc) vc.style.display = active ? 'flex' : 'none';
+        if (hb) hb.style.display = active ? 'inline-block' : 'none';
+        if (cc) cc.style.display = active ? 'none' : 'block';
+    }
+
+    // 拨出时显示"呼叫中"状态
+    showCallingUI(targetUserId) {
+        const cc = document.getElementById('callControls');
+        if (cc) {
+            cc.innerHTML = '<span style="color:var(--text-secondary);font-size:13px;">呼叫中...</span>' +
+                '<button onclick="window._webrtcManager && window._webrtcManager.cancelCall()" ' +
+                'style="margin-left:8px;padding:4px 12px;border:1px solid var(--danger);' +
+                'color:var(--danger);background:none;border-radius:8px;cursor:pointer;font-size:12px;">取消</button>';
+        }
+    }
+
+    // 取消主叫（在对方接听前）
+    cancelCall() {
+        if (!this.calleeUserId) return;
+        this.ws.send(JSON.stringify({
+            type: 'hangup',
+            body: { targetUserId: this.calleeUserId }
+        }));
+        this.isCalling = false;
+        this.calleeUserId = null;
+        // 恢复呼叫按钮
+        if (typeof window._webrtcRestoreCallControls === 'function') {
+            window._webrtcRestoreCallControls();
+        }
     }
 
     showIncomingCall(data) {
-        const fromUserId = data.body.fromUserId
-        const fromUserName = data.body.fromUserName
-        const callId = data.body.callId
+        const fromUserId = data.body.fromUserId;
+        const fromUserName = data.body.fromUserName;
+        const callId = data.body.callId;
 
         if (confirm(`${fromUserName} 邀请你视频通话，是否接受？`)) {
             this.acceptCall(fromUserId, callId);
@@ -286,42 +394,8 @@ class WebRTCManager {
         }
     }
 
-    //
-    handleCallAccept(data) {
-        const fromUserId = data.body.fromUserId
-        const callId = data.body.callId
-
-        // 1. 获取本地媒体流
-        this.localStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true
-        });
-        document.getElementById('localVideo').srcObject = this.localStream;
-
-        // 2. 创建 PeerConnection
-        this.pc = new RTCPeerConnection(this.iceServers);
-        this.setupPeerConnection();
-
-        // 3. 添加本地流
-        this.localStream.getTracks().forEach(track => {
-            this.pc.addTrack(track, this.localStream);
-        });
-
-        // 4. 创建 Offer
-        const offer = await this.pc.createOffer();
-        await this.pc.setLocalDescription(offer);
-
-        // 5. 通过 DO 发送 Offer 给目标用户
-        this.ws.send(JSON.stringify({
-            type: 'webrtc-offer',
-            body: {
-                targetUserId: fromUserId,
-                callId: callId,
-                sdp: this.pc.localDescription
-            }
-        }));
-
-        this.isCalling = true;
-        this.showCallUI(true);
+    showError(msg) {
+        console.error('[WebRTC]', msg);
+        alert(msg);
     }
 }

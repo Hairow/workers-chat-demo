@@ -223,7 +223,7 @@ export class ChatRoom {
     location: { required: ["lat", "lng", "name"], optional: ["replyTo"], maxLen: { name: 128 } },
     'call-user': { required: ['targetUserId', 'fromUserName'], optional: [], maxLen: {} },
     'call-rejected': { required: ['targetUserId'], optional: [], maxLen: {} },
-    'call-accepted': { required: ['targetUserId'], optional: [], maxLen: {} },
+    'call-accepted': { required: ['targetUserId', 'callId'], optional: [], maxLen: {} },
     'webrtc-offer': { required: ['targetUserId', 'sdp'], optional: [], maxLen: {} },
     'webrtc-answer': { required: ['targetUserId', 'sdp'], optional: [], maxLen: {} },
     'webrtc-ice': { required: ['targetUserId', 'candidate'], optional: [], maxLen: {} },
@@ -343,6 +343,7 @@ export class ChatRoom {
 
   //处理普通消息 非WebRTC
   async handleCommonMsg(websocket, data) {
+    let session = this.sessions.get(websocket);
     // Determine message type from the typed-schema payload.
     // 从类型化 schema 中获取消息类型。
     let type = data.type;
@@ -511,7 +512,7 @@ export class ChatRoom {
     // data 格式: { type: 'call-accepted', body:{targetUserId: 'xxx' }  }
     const fromUserId = this.users.get(senderWs);
     const targetUserId = data.body.targetUserId;
-    const callId = data.callId;
+    const callId = data.body.callId;
 
     const callState = this.callStates.get(callId);
     if (!callState) {
@@ -574,7 +575,7 @@ export class ChatRoom {
     // data 格式: { type: 'webrtc-answer', body:{targetUserId: 'xxx', sdp: {...}}  }
     // data 格式: { type: 'webrtc-ice', body:{targetUserId: 'xxx', candidate: 'xxx'}  }
 
-    const fromUserId = this.users.get(senderWs),
+    const fromUserId = this.users.get(senderWs);
     const targetUserId = data.body.targetUserId;
     const callId = data.body.callId;
     const callState = this.callStates.get(callId);
