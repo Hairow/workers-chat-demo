@@ -10,9 +10,9 @@
     "tail": "wrangler tail"
   },
   "dependencies": {
-    "jose": "^5.0.0"
+    "jose": "^6.2.8"
   },
   "devDependencies": {
-    "wrangler": "^4.111.0"
+    "wrangler": "^4.119.0"
   }
 }
