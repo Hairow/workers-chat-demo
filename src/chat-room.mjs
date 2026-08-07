@@ -26,6 +26,11 @@ export class ChatRoom {
     // We will track metadata for each client WebSocket object in `sessions`.
     // 我们将用 `sessions` 跟踪每个客户端 WebSocket 对象的元数据。
     this.sessions = new Map();
+
+    // 存储每个用户的 WebRTC 连接状态（可选）
+    this.users = new Map(); // session -> userId
+    this.callStates = new Map(); // callId -> { caller, callee, state, ... }
+
     this.state.getWebSockets().forEach((webSocket) => {
       // The constructor may have been called when waking up from hibernation,
       // so get previously serialized metadata for any existing WebSockets.
@@ -166,6 +171,10 @@ export class ChatRoom {
     webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip, name: session.name });
     this.sessions.set(webSocket, session);
 
+    // 生成用户ID（可以用 WebSocket 对象本身做标识）
+    const userId = crypto.randomUUID();
+    this.users.set(webSocket, userId);
+
     // Queue "join" messages for all OTHER online users, to populate the client's roster.
     // The new session itself is excluded — its own join is broadcast separately below.
     // 为所有其他在线用户排队 "join" 消息，以填充客户端的在线名单。
@@ -212,7 +221,15 @@ export class ChatRoom {
     audio: { required: ["uploadId"], optional: ["duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     video: { required: ["uploadId"], optional: ["duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     location: { required: ["lat", "lng", "name"], optional: ["replyTo"], maxLen: { name: 128 } },
-  };
+    'call-user': { required: ['targetUserId', 'fromUserName'], optional: [], maxLen: {} },
+    'call-rejected': { required: ['targetUserId'], optional: [], maxLen: {} },
+    'call-accepted': { required: ['targetUserId'], optional: [], maxLen: {} },
+    'webrtc-offer': { required: ['targetUserId', 'sdp'], optional: [], maxLen: {} },
+    'webrtc-answer': { required: ['targetUserId', 'sdp'], optional: [], maxLen: {} },
+    'webrtc-ice': { required: ['targetUserId', 'candidate'], optional: [], maxLen: {} },
+    hangup: { required: ['targetUserId'], optional: [], maxLen: {} },
+
+  }
 
   // Validate a message according to its type schema.
   // 根据类型 schema 校验消息。
@@ -268,37 +285,6 @@ export class ChatRoom {
 
       let data = JSON.parse(msg);
 
-      //暂时不起作用，客户端不需要发送name
-      if (!session.name) {
-        // The first message is always the user info with their name.
-        // 第一条消息始终是带用户名的用户信息。
-        session.name = "" + (data.name || "anonymous");
-        webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), name: session.name });
-
-        if (session.name.length > 32) {
-          webSocket.send(JSON.stringify({ error: "Name too long." }));
-          webSocket.close(1009, "Name too long.");
-          return;
-        }
-
-        // Deliver queued messages; this includes both history and roster joins.
-        // 下发积压消息（包括历史记录和在线名单）。
-        session.blockedMessages.forEach(queued => {
-          webSocket.send(queued);
-        });
-        delete session.blockedMessages;
-
-        this.broadcast({ joined: session.name, ip: session.ip });
-
-        webSocket.send(JSON.stringify({ ready: true }));
-        return;
-      }
-
-      // ── After name is set, all subsequent messages follow the typed-schema model. ──
-      // ── 名字设置完成后，所有后续消息使用类型化 schema 模型。──
-
-      // Determine message type from the typed-schema payload.
-      // 从类型化 schema 中获取消息类型。
       let type = data.type;
       let body = data.body;
 
@@ -315,58 +301,102 @@ export class ChatRoom {
         return;
       }
 
-      // Sanitize all string body fields.
-      // 清洗所有字符串 body 字段。
-      let sanitizedBody = {};
-      for (let [k, v] of Object.entries(body)) {
-        sanitizedBody[k] = typeof v === "string" ? "" + v : v;
+      //处理不同类型的消息包括转发WebRTC
+      switch (data.type) {
+        case 'text':
+        case 'image':
+        case 'audio':
+        case 'video':
+        case 'location':
+          await this.handleCommonMsg(webSocket, data)
+          break;
+        case 'call-user':
+          // 发起通话请求
+          await this.handleCallRequest(data, webSocket);
+          break;
+        case 'call-accepted':
+          // 接受通话请求
+          await this.handleCallAccepted(data, webSocket);
+          break;
+        case 'call-rejected':
+          //  处理拒绝
+          await this.handleCallRejected(data, webSocket);
+          break;
+        case 'webrtc-offer':
+        case 'webrtc-answer':
+        case 'webrtc-ice':
+          // WebRTC 信令转发（只转发给目标用户）
+          await this.forwardWebRTCSignal(data, webSocket);
+          break;
+        case 'hangup':
+          // 挂断通知
+          await this.broadcastHangup(data, webSocket);
+          break;
+        default:
+          console.warn('未知消息类型:', data.type);
       }
-      body = sanitizedBody;
 
-      // Sanitize replyTo if present on any message type.
-      // 任何消息类型如果携带 replyTo，清洗其内容。
-      if (body.replyTo) {
-        body.replyTo.name = "" + (body.replyTo.name || "unknown");
-        body.replyTo.text = "" + (body.replyTo.text || "");
-        if (body.replyTo.text.length > 512) {
-          body.replyTo.text = body.replyTo.text.slice(0, 512);
-        }
-      }
-
-      // Add timestamp.
-      // 添加时间戳。
-      data.timestamp = Math.max(Date.now(), this.lastTimestamp + 1);
-      this.lastTimestamp = data.timestamp;
-
-      // Assemble the final message envelope.
-      // 组装最终消息信封。
-      let envelope = {
-        type: type,
-        sender: { name: session.name, ip: session.ip },
-        timestamp: data.timestamp,
-        body: body,
-      };
-
-      let dataStr = JSON.stringify(envelope);
-      this.broadcast(dataStr);
-
-      // Save message.
-      // 保存消息。
-      let key = new Date(data.timestamp).toISOString();
-      await this.storage.put(key, dataStr);
-
-      // Keep only the last 1000 messages (check every 100 messages to avoid blocking).
-      // 只保留最近 1000 条消息（每 100 条检查一次，减少阻塞）。
-      this._msgCount = (this._msgCount || 0) + 1;
-      if (this._msgCount % 100 === 0) {
-        let allKeys = [...(await this.storage.list()).keys()];
-        if (allKeys.length > 1000) {
-          let keysToDelete = allKeys.sort().slice(0, allKeys.length - 1000);
-          await Promise.all(keysToDelete.map(k => this.storage.delete(k)));
-        }
-      }
     } catch (err) {
       webSocket.send(JSON.stringify({ error: err.stack }));
+    }
+  }
+
+  //处理普通消息 非WebRTC
+  async handleCommonMsg(websocket, data) {
+    // Determine message type from the typed-schema payload.
+    // 从类型化 schema 中获取消息类型。
+    let type = data.type;
+    let body = data.body;
+
+    // Sanitize all string body fields.
+    // 清洗所有字符串 body 字段。
+    let sanitizedBody = {};
+    for (let [k, v] of Object.entries(body)) {
+      sanitizedBody[k] = typeof v === "string" ? "" + v : v;
+    }
+    body = sanitizedBody;
+
+    // Sanitize replyTo if present on any message type.
+    // 任何消息类型如果携带 replyTo，清洗其内容。
+    if (body.replyTo) {
+      body.replyTo.name = "" + (body.replyTo.name || "unknown");
+      body.replyTo.text = "" + (body.replyTo.text || "");
+      if (body.replyTo.text.length > 512) {
+        body.replyTo.text = body.replyTo.text.slice(0, 512);
+      }
+    }
+
+    // Add timestamp.
+    // 添加时间戳。
+    data.timestamp = Math.max(Date.now(), this.lastTimestamp + 1);
+    this.lastTimestamp = data.timestamp;
+
+    // Assemble the final message envelope.
+    // 组装最终消息信封。
+    let envelope = {
+      type: type,
+      sender: { name: session.name, ip: session.ip },
+      timestamp: data.timestamp,
+      body: body,
+    };
+
+    let dataStr = JSON.stringify(envelope);
+    this.broadcast(dataStr);
+
+    // Save message.
+    // 保存消息。
+    let key = new Date(data.timestamp).toISOString();
+    await this.storage.put(key, dataStr);
+
+    // Keep only the last 1000 messages (check every 100 messages to avoid blocking).
+    // 只保留最近 1000 条消息（每 100 条检查一次，减少阻塞）。
+    this._msgCount = (this._msgCount || 0) + 1;
+    if (this._msgCount % 100 === 0) {
+      let allKeys = [...(await this.storage.list()).keys()];
+      if (allKeys.length > 1000) {
+        let keysToDelete = allKeys.sort().slice(0, allKeys.length - 1000);
+        await Promise.all(keysToDelete.map(k => this.storage.delete(k)));
+      }
     }
   }
 
@@ -380,6 +410,7 @@ export class ChatRoom {
     if (session.name) {
       this.broadcast({ quit: session.name, ip: session.ip });
     }
+    this.users.delete(webSocket);
   }
 
   async webSocketClose(webSocket, code, reason, wasClean) {
@@ -438,4 +469,243 @@ export class ChatRoom {
       }
     });
   }
+
+  // === 处理通话请求 ===
+  async handleCallRequest(data, senderWs) {
+    // data 格式: { type: 'call-user', body:{targetUserId: 'xxx', fromUserName: 'xxx' }  }
+    const fromUserId = this.users.get(senderWs);
+    const targetUserId = data.body.targetUserId;
+    const callId = crypto.randomUUID();
+
+    const callState = {
+      id: callId,
+      caller: fromUserId,
+      callee: targetUserId,
+      state: 'calling', // calling  | accepted | rejected | cancelled | timeout | connected | ended
+      offerSent: false,
+      offerTimestamp: null,
+      answerSent: false,
+      answerTimestamp: null,
+    }
+
+
+    for (const [webSocket, userId] of this.users) {
+      if (userId === targetUserId && webSocket.readyState === WebSocket.OPEN) {
+        webSocket.send(JSON.stringify({
+          type: 'incoming-call',
+          body: {
+            ...data.body,
+            fromUserId: fromUserId,
+            callId: callId,
+          }
+        }));
+        // 保存呼叫状态
+        this.callStates.set(callId, callState);
+        break;
+      }
+    }
+  }
+
+  // === 处理接受呼叫 ===
+  async handleCallAccepted(data, senderWs) {
+    // data 格式: { type: 'call-accepted', body:{targetUserId: 'xxx' }  }
+    const fromUserId = this.users.get(senderWs);
+    const targetUserId = data.body.targetUserId;
+    const callId = data.callId;
+
+    const callState = this.callStates.get(callId);
+    if (!callState) {
+      console.warn('⚠️ 呼叫不存在:', callId);
+      return;
+    }
+
+    if (callState.callee !== fromUserId) {
+      senderWs.send(JSON.stringify({
+        type: 'error',
+        body: {
+          error: '只有被叫方可以接受呼叫'
+        }
+      }));
+      return;
+    }
+
+    for (const [ws, userId] of this.users) {
+      if (userId === targetUserId && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'call-accepted',
+          body: {
+            ...data.body,
+            fromUserId: fromUserId,
+          }
+        }));
+        // 更新状态为 accepted
+        callState.state = 'accepted';
+        callState.acceptedTimestamp = Date.now();
+        return;
+      }
+    }
+  }
+
+  // === 处理拒绝呼叫 ===
+  async handleCallRejected(data, senderWs) {
+    // data 格式: { type: 'call-rejected', body:{targetUserId: 'xxx' }  }
+    const fromUserId = this.users.get(senderWs);
+    const targetUserId = data.body.targetUserId;
+    const reason = data.body.reason || 'rejected'; // 可选：'busy', 'timeout', 'declined'
+
+    for (const [ws, userId] of this.users) {
+      if (userId === targetUserId && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'call-rejected',
+          body: {
+            ...data.body,
+            fromUserId: fromUserId,
+          }
+        }));
+        return;
+      }
+    }
+  }
+
+
+  // === 转发 WebRTC 信令 ===
+  async forwardWebRTCSignal(data, senderWs) {
+    // data 格式: { type: 'webrtc-offer', body:{targetUserId: 'xxx', sdp: {...}}  }
+    // data 格式: { type: 'webrtc-answer', body:{targetUserId: 'xxx', sdp: {...}}  }
+    // data 格式: { type: 'webrtc-ice', body:{targetUserId: 'xxx', candidate: 'xxx'}  }
+
+    const fromUserId = this.users.get(senderWs),
+    const targetUserId = data.body.targetUserId;
+    const callId = data.body.callId;
+    const callState = this.callStates.get(callId);
+
+    if (data.type == 'webrtc-offer') {
+      if (!callState) {
+        senderWs.send(JSON.stringify({
+          type: 'offer-error',
+          body: {
+            error: '呼叫不存在',
+            callId: callId
+          }
+        }));
+        return;
+      }
+      if (callState.caller !== fromUserId) {
+        senderWs.send(JSON.stringify({
+          type: 'offer-error',
+          body: {
+            error: '只有主叫方可以发送 Offer',
+            callId: callId
+          }
+        }));
+        return;
+      }
+      if (callState.state !== 'accepted') {
+        const stateMap = {
+          'calling': '对方还未接听',
+          'rejected': '对方已拒绝',
+          'cancelled': '已取消',
+          'connected': '已连接',
+          'ended': '已结束'
+        };
+        senderWs.send(JSON.stringify({
+          type: 'offer-error',
+          body: {
+            error: `状态错误: ${stateMap[callState.state] || callState.state}`,
+            callId: callId
+          }
+        }));
+        return;
+      }
+      if (callState.offerSent) {
+        senderWs.send(JSON.stringify({
+          type: 'offer-error',
+          body: {
+            error: '已经发送过 Offer，请勿重复发送',
+            callId: callId
+          }
+        }));
+        return;
+      }
+
+    } else if (data.type == 'webrtc-answer') {
+      if (!callState) {
+        senderWs.send(JSON.stringify({
+          type: 'offer-error',
+          body: {
+            error: '呼叫不存在',
+            callId: callId
+          }
+        }));
+        return;
+      }
+      if (callState.callee !== fromUserId) {
+        senderWs.send(JSON.stringify({
+          type: 'offer-error',
+          body: {
+            error: '只有被叫方可以发送 Answer',
+            callId: callId
+          }
+        }));
+        return;
+      }
+      if (!callState.offerSent) {
+        senderWs.send(JSON.stringify({
+          type: 'answer-error',
+          body: {
+            error: '尚未收到 Offer，请等待',
+            callId: callId
+          }
+        }));
+        return;
+      }
+      if (callState.state === 'connected') {
+        console.warn('已连接，忽略重复的 Answer');
+        return;
+      }
+
+    }
+
+    // 找到目标用户的 WebSocket
+    for (const [webSocket, userId] of this.users) {
+      if (userId === targetUserId && webSocket.readyState === WebSocket.OPEN) {
+        webSocket.send(JSON.stringify({
+          type: data.type,
+          body: {
+            ...data.body,
+            fromUserId: fromUserId,
+          }
+        }));
+        if (data.type == 'webrtc-offer') {
+          // 标记已发送
+          callState.offerSent = true;
+          callState.offerTimestamp = Date.now();
+        } else if (data.type == 'webrtc-answer') {
+          // 更新状态为已连接
+          callState.state = 'connected';
+          callState.answerTimestamp = Date.now();
+        }
+
+        break;
+      }
+    }
+  }
+
+
+  // === 广播挂断 ===
+  async broadcastHangup(data, senderWs) {
+    // data 格式: { type: 'hangup', body:{targetUserId: 'xxx' }  }
+    for (const [webSocket, userId] of this.users) {
+      if (webSocket !== senderWs && webSocket.readyState === WebSocket.OPEN) {
+        webSocket.send(JSON.stringify({
+          type: 'peer-hangup',
+          body: {
+            ...data.body,
+            fromUserId: this.users.get(senderWs)
+          }
+        }));
+      }
+    }
+  }
+
 }
