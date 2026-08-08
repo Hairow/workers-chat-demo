@@ -868,12 +868,9 @@
                     var ws = new WebSocket(
                         wss + this.hostname + '/api/room/' + this.roomname + '/create?token=' + encodeURIComponent(this.authToken)
                     );
-                    var rejoined = false;
                     var startTime = Date.now();
 
                     var rejoin = (reason) => {
-                        if (rejoined) return;
-                        rejoined = true;
                         this.ws = null;
                         this.roster = [];
                         this.connRetries++;
@@ -963,8 +960,12 @@
                         }
                     });
 
-                    ws.addEventListener('close', (e) => { rejoin('close ' + (e.code || '?')); });
-                    ws.addEventListener('error', () => { rejoin('error'); });
+                    ws.addEventListener('close', (e) => {
+                        rejoin('close ' + (e.code || '?'));
+                    });
+                    ws.addEventListener('error', () => {
+                        // close 事件始终紧随 error，统一由 close 处理重连
+                    });
                 },
 
                 // ── Send ───────────────────────────────────
