@@ -392,8 +392,8 @@ export class ChatRoom {
     this._msgCount = (this._msgCount || 0) + 1;
     if (this._msgCount % 100 === 0) {
       let allKeys = [...(await this.storage.list()).keys()];
-      if (allKeys.length > 1000) {
-        let keysToDelete = allKeys.sort().slice(0, allKeys.length - 1000);
+      if (allKeys.length > 100) {
+        let keysToDelete = allKeys.sort().slice(0, allKeys.length - 100);
         await Promise.all(keysToDelete.map(k => this.storage.delete(k)));
       }
     }
