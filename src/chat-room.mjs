@@ -101,7 +101,7 @@ export class ChatRoom {
           if (request.headers.get("Upgrade") != "websocket") {
             return new Response("expected websocket", { status: 400 });
           }
-
+          console.error('Upgrade==websocket')
           // Get the client's IP address for use with the rate limiter.
           // 获取客户端 IP 地址用于限流。
           let ip = request.headers.get("CF-Connecting-IP");
@@ -119,11 +119,11 @@ export class ChatRoom {
           // 将其中一端返回到响应中，另一端由我们操作。注意这个 API 并非 Fetch API 标准的一部分，
           // 不幸的是 Fetch API / Service Workers 规范目前还没有定义作为 WebSocket 服务器的方式。
           let pair = new WebSocketPair();
-
+          console.error('new WebSocketPair')
           // We're going to take pair[1] as our end, and return pair[0] to the client.
           // 我们将 pair[1] 作为服务端，pair[0] 返回给客户端。
           await this.handleSession(pair[1], ip, verifiedName);
-
+          console.error('handleSession')
           // Now we return the other end of the pair to the client.
           // 现在将 pair 的另一端返回给客户端。
           return new Response(null, { status: 101, webSocket: pair[0] });
