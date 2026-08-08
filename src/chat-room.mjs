@@ -554,7 +554,6 @@ export class ChatRoom {
     // data 格式: { type: 'call-rejected', body:{targetUserId: 'xxx' }  }
     const fromUserId = this.sessions.get(senderWs).userId;
     const targetUserId = data.body.targetUserId;
-    const reason = data.body.reason || 'rejected'; // 可选：'busy', 'timeout', 'declined'
 
     for (const [ws, s] of this.sessions) {
       if (s.userId === targetUserId && ws.readyState === WebSocket.OPEN) {

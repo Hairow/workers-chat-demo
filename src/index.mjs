@@ -77,7 +77,6 @@
 // clients. This part is stateless.
 // 这部分代码实现了接收外部 HTTP 请求的普通 Worker。这部分是无状态的。
 
-import HTML from "./chat.html";
 import { handleErrors } from "./utils.mjs";
 import { handleUpload, handleDeleteUpload, handleFileMeta, handleFileBlob } from "./upload.mjs";
 import { signToken, verifyToken } from "./auth.mjs";

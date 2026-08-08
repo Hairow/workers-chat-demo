@@ -163,14 +163,6 @@ class WebRTCDetector {
                     groupId: d.groupId
                 }));
 
-            this.capabilities.mediaDevices.speakers = devices
-                .filter(d => d.kind === 'audiooutput')
-                .map(d => ({
-                    deviceId: d.deviceId,
-                    label: d.label || `Speaker ${d.deviceId.slice(0, 6)}`,
-                    groupId: d.groupId
-                }));
-
             return true;
 
         } catch (error) {
@@ -266,51 +258,7 @@ class WebRTCDetector {
     }
 
     // ============================================
-    // 6️⃣ 测试实际设备流（可选的完整测试）
-    // ============================================
-
-    async testDeviceStream(constraints = { video: true, audio: true }) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-            // 检查流是否包含视频轨道
-            const hasVideo = stream.getVideoTracks().length > 0;
-            const hasAudio = stream.getAudioTracks().length > 0;
-
-            // 获取实际设备信息
-            const tracks = stream.getTracks().map(track => ({
-                kind: track.kind,
-                label: track.label,
-                enabled: track.enabled,
-                readyState: track.readyState,
-                settings: track.getSettings()
-            }));
-
-            // 停止所有轨道
-            stream.getTracks().forEach(track => track.stop());
-
-            return {
-                success: true,
-                hasVideo: hasVideo,
-                hasAudio: hasAudio,
-                tracks: tracks,
-                constraints: constraints
-            };
-
-        } catch (error) {
-            return {
-                success: false,
-                error: {
-                    name: error.name,
-                    message: error.message,
-                    code: this.getErrorCode(error)
-                }
-            };
-        }
-    }
-
-    // ============================================
-    // 7️⃣ 错误码映射
+    // 6️⃣ 错误码映射
     // ============================================
 
     getErrorCode(error) {
@@ -330,19 +278,15 @@ class WebRTCDetector {
     }
 
     // ============================================
-    // 8️⃣ 权限变化回调
+    // 7️⃣ 权限变化回调
     // ============================================
 
     onPermissionChange(type, state) {
-        console.log(`📢 权限变化: ${type} -> ${state}`);
-        // 可以在这里触发 UI 更新
-        if (typeof this.permissionChangeCallback === 'function') {
-            this.permissionChangeCallback(type, state);
-        }
+        console.log(`权限变化: ${type} -> ${state}`);
     }
 
     // ============================================
-    // 9️⃣ 一键完整检测
+    // 8️⃣ 一键完整检测
     // ============================================
 
     async fullDetect() {
@@ -357,34 +301,6 @@ class WebRTCDetector {
         console.log('📊 WebRTC 检测结果:', results);
 
         return results;
-    }
-
-    // ============================================
-    // 🔟 友好的错误提示
-    // ============================================
-
-    getUserFriendlyError(error, type = 'camera') {
-        const messages = {
-            'camera': {
-                'NotAllowedError': '摄像头权限被拒绝，请在浏览器设置中允许访问摄像头',
-                'NotFoundError': '未检测到摄像头设备，请连接摄像头后重试',
-                'NotReadableError': '摄像头被其他应用占用，请关闭其他使用摄像头的程序',
-                'SecurityError': '页面需要 HTTPS 才能访问摄像头，请使用 HTTPS 协议访问',
-                'AbortError': '摄像头访问被中止，请重试',
-                'OverconstrainedError': '摄像头不支持当前配置，请降低分辨率要求'
-            },
-            'microphone': {
-                'NotAllowedError': '麦克风权限被拒绝，请在浏览器设置中允许访问麦克风',
-                'NotFoundError': '未检测到麦克风设备，请连接麦克风后重试',
-                'NotReadableError': '麦克风被其他应用占用，请关闭其他使用麦克风的程序',
-                'SecurityError': '页面需要 HTTPS 才能访问麦克风，请使用 HTTPS 协议访问',
-                'AbortError': '麦克风访问被中止，请重试',
-                'OverconstrainedError': '麦克风不支持当前配置，请降低采样率要求'
-            }
-        };
-
-        const typeMessages = messages[type] || messages.camera;
-        return typeMessages[error.name] || `访问${type}失败: ${error.message}`;
     }
 }
 

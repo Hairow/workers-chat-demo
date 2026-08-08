@@ -452,8 +452,6 @@
             opacity: 1;
         }
 
-
-
         .msg-bubble .location-row {
             display: flex;
             align-items: center;
@@ -484,7 +482,6 @@
             height: 1em;
         }
 
-        /* ── Mobile roster removed — use unified absolute dropdown ── */
 
         @keyframes spin {
             to {
@@ -501,65 +498,6 @@
             font-size: 16px;
             margin-left: 4px;
             animation: spin 1s linear infinite;
-        }
-
-        /* ── WebRTC video overlay ─────────────────── */
-        #videoContainer {
-            position: fixed;
-            z-index: 20;
-            inset: 0;
-            background: rgba(0, 0, 0, .88);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-        }
-
-        #videoContainer video {
-            border-radius: 12px;
-            background: #000;
-            box-shadow: var(--shadow-lg);
-        }
-
-        #remoteVideo {
-            width: min(90vw, 720px);
-            max-height: 60vh;
-            object-fit: cover;
-        }
-
-        #localVideo {
-            width: min(30vw, 240px);
-            max-height: 20vh;
-            object-fit: cover;
-            position: absolute;
-            bottom: 80px;
-            right: 20px;
-            border: 2px solid rgba(255,255,255,.3);
-        }
-
-        #hangupBtn {
-            position: absolute;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            height: 48px;
-            padding: 0 32px;
-            font-size: 15px;
-            font-family: inherit;
-            font-weight: 600;
-            color: #fff;
-            background: var(--danger);
-            border: none;
-            border-radius: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 16px rgba(255,59,48,.4);
-            transition: background var(--transition), transform var(--transition);
-        }
-
-        #hangupBtn:hover {
-            background: #e0352b;
-            transform: translateX(-50%) scale(1.04);
         }
 
         /* ── Roster call button ───────────────────── */
@@ -955,7 +893,7 @@
 
                         // 初始化 WebRTC 管理器
                         var self = this;
-                        this.webrtcManager = new WebRTCManager(ws, this.roomname, this.username, this.username, {
+                        this.webrtcManager = new WebRTCManager(ws, this.username, {
                             onCallStateChange: function (active) {
                                 self.inCall = active;
                             },
@@ -1022,25 +960,6 @@
 
                     ws.addEventListener('close', rejoin);
                     ws.addEventListener('error', () => { rejoin(); });
-                },
-
-                resetToLogin: function (msg) {
-                    if (this.webrtcManager) {
-                        this.webrtcManager.hangup();
-                        this.webrtcManager = null;
-                    }
-                    this.ws = null;
-                    this.roster = [];
-                    this.chatMessages = [];
-                    this.lastTs = 0;
-                    this.wroteWelcome = false;
-                    this.connStatus = '';
-                    this.connRetries = 0;
-                    this.authError = msg || '';
-                    this.step = 'name';
-                    this.$nextTick(() => {
-                        if (this.$refs.nameInput) this.$refs.nameInput.focus();
-                    });
                 },
 
                 // ── Send ───────────────────────────────────

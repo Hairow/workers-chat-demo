@@ -2,11 +2,9 @@
 // 注意：webrtc-detect.js 通过 <script> 加载，webrtcDetector 为全局变量
 
 class WebRTCManager {
-    constructor(ws, roomId, userId, userName, callbacks) {
+    constructor(ws, userId, callbacks) {
         this.ws = ws;
-        this.roomId = roomId;
         this.userId = userId;
-        this.userName = userName;
         this.pc = null;
         this.localStream = null;
         this.remoteStream = null;
@@ -248,19 +246,6 @@ class WebRTCManager {
     // 拨出时显示"呼叫中"状态
     showCallingUI(targetUserId) {
         this._setStatus('呼叫中，等待对方接听...');
-    }
-
-    // 取消主叫（在对方接听前）
-    cancelCall() {
-        if (!this.calleeUserId) return;
-        this.ws.send(JSON.stringify({
-            type: 'hangup',
-            body: { targetUserId: this.calleeUserId }
-        }));
-        this.isCalling = false;
-        this.calleeUserId = null;
-        this._setCallActive(false);
-        this._setStatus(null);
     }
 
     // === 处理对方拒绝呼叫 ===
