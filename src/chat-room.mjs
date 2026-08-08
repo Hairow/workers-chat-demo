@@ -404,8 +404,16 @@ export class ChatRoom {
   // 当 "close" 和 "error" 事件发生时，从 sessions 列表移除 WebSocket 并广播退出消息。
   async closeOrErrorHandler(webSocket) {
     let session = this.sessions.get(webSocket) || {};
+    let userId = session.userId;
     session.quit = true;
     this.sessions.delete(webSocket);
+    if (userId) {
+      for (const [callId, state] of this.callStates) {
+        if (state.callerId === userId || state.calleeId === userId) {
+          this.callStates.delete(callId);
+        }
+      }
+    }
     if (session.name) {
       this.broadcast({ quit: session.name, ip: session.ip });
     }
