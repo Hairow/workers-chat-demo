@@ -125,22 +125,22 @@ class WebRTCManager {
     }
 
     // === 发起通话 ===
-    async startCallUser(targetUserName) {
+    async startCallUser(targetUserId) {
         if (this.isCalling) return;
         if (!(await this.checkWebRtc())) return;
 
-        this.calleeUserId = targetUserName;  // 记录被叫方
+        this.calleeUserId = targetUserId;  // 记录被叫方
         this.isCalling = true;
 
         // 通知对方有人呼叫
         this.ws.send(JSON.stringify({
             type: 'call-user',
             body: {
-                targetUserName: targetUserName
+                targetUserId: targetUserId
             }
         }));
 
-        this.showCallingUI(targetUserName);
+        this.showCallingUI(targetUserId);
         this._setCallActive(true);  // 开始呼叫即进入通话状态
     }
 

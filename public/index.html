@@ -919,7 +919,7 @@
                         if (data.error) {
                             this.addSysMsg('* Error: ' + data.error);
                         } else if (data.joined) {
-                            this.roster.push({ name: data.joined, ip: data.ip || '' });
+                            this.roster.push({ name: data.joined, ip: data.ip || '', userId: data.userId });
                         } else if (data.quit) {
                             this.roster = this.roster.filter((u) => { return u.name !== data.quit; });
                         } else if (data.ready) {
@@ -1101,7 +1101,7 @@
                 // ── WebRTC 通话 ─────────────────────────
                 callUser: function (user) {
                     if (!this.webrtcManager || this.inCall) return;
-                    this.webrtcManager.startCallUser(user.name);
+                    this.webrtcManager.startCallUser(user.userId);
                 },
                 hangupCall: function () {
                     if (this.webrtcManager) {

@@ -204,7 +204,7 @@ export class ChatRoom {
 
       // Broadcast join to other users.
       // 向其他用户广播加入消息。
-      this.broadcast({ joined: verifiedName, ip });
+      this.broadcast({ joined: verifiedName, ip, userId: session.userId });
 
     }
   }
@@ -219,7 +219,7 @@ export class ChatRoom {
     audio: { required: ["uploadId"], optional: ["duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     video: { required: ["uploadId"], optional: ["duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     location: { required: ["lat", "lng", "name"], optional: ["replyTo"], maxLen: { name: 128 } },
-    'call-user': { required: ['targetUserName'], optional: [], maxLen: {} },
+    'call-user': { required: ['targetUserId'], optional: [], maxLen: {} },
     'call-rejected': { required: ['targetUserId'], optional: [], maxLen: {} },
     'call-accepted': { required: ['targetUserId', 'callId'], optional: [], maxLen: {} },
     'webrtc-offer': { required: ['targetUserId', 'sdp'], optional: [], maxLen: {} },
@@ -470,25 +470,22 @@ export class ChatRoom {
 
   // === 处理通话请求 ===
   async handleCallRequest(data, senderWs) {
-    // data.body.targetUserName 是目标用户名，通过 sessions 按名称查找目标
     const callerSession = this.sessions.get(senderWs);
     const fromUserId = callerSession.userId;
     const fromUserName = callerSession.name;
-    const targetName = data.body.targetUserName;
+    const targetUserId = data.body.targetUserId;
     const callId = crypto.randomUUID();
 
-    // 在 sessions 中按名称查找目标 websocket
+    // 直接按 userId 查找目标
     let targetWs = null;
-    for (const [ws, session] of this.sessions) {
-      if (session.name === targetName && ws.readyState === WebSocket.OPEN) {
+    for (const [ws, s] of this.sessions) {
+      if (s.userId === targetUserId && ws.readyState === WebSocket.OPEN) {
         targetWs = ws;
         break;
       }
     }
 
     if (!targetWs) return;
-
-    const targetUserId = this.sessions.get(targetWs).userId;
 
     const callState = {
       id: callId,
