@@ -928,7 +928,6 @@
                         wss + this.hostname + '/api/room/' + this.roomname + '/websocket?token=' + encodeURIComponent(this.authToken)
                     );
                     var rejoined = false;
-                    var everOpened = false;   // 是否曾成功连上过
                     var startTime = Date.now();
 
                     var rejoin = () => {
@@ -951,7 +950,6 @@
                         this.ws = ws;
                         this.connStatus = '';
                         this.connRetries = 0;
-                        everOpened = true;
                         // Name is already verified via JWT — no need to send a name message.
                         // 用户名已通过 JWT 验证，无需再发送名称消息。
 
@@ -1022,19 +1020,7 @@
                         }
                     });
 
-                    ws.addEventListener('close', (event) => {
-                        // 从未连上过 → 网络不通，重试
-                        if (!everOpened) {
-                            rejoin();
-                            return;
-                        }
-                        // 连上后异常断开（如 DO 热重启）→ 退回登录页
-                        if (event.code !== 1000 && event.code !== 1001) {
-                            this.resetToLogin('连接已断开，请重新进入。 (code=' + (event.code || '?') + ')');
-                            return;
-                        }
-                        rejoin();
-                    });
+                    ws.addEventListener('close', rejoin);
                     ws.addEventListener('error', () => { rejoin(); });
                 },
 
