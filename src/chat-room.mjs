@@ -179,7 +179,7 @@ export class ChatRoom {
     // 排除新会话自身 — 自己的 join 由后面的 broadcast 单独发送。
     for (let otherSession of this.sessions.values()) {
       if (otherSession.name && otherSession !== session) {
-        session.blockedMessages.push(JSON.stringify({ joined: otherSession.name, ip: otherSession.ip }));
+        session.blockedMessages.push(JSON.stringify({ joined: otherSession.name, ip: otherSession.ip, userId: otherSession.userId }));
       }
     }
 
