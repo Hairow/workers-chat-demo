@@ -14,6 +14,7 @@ class WebRTCManager {
         this.calleeUserId = null;     // 主叫方记录被叫方 userId
         this.pendingCallFrom = null;  // 被叫方记录主叫方 userId
         this.callbacks = callbacks || {};  // 回调：onCallStateChange(active), onStatus(msg)
+        this.iceBatch = [];           // 批量收集 ICE candidates
 
         // ICE 服务器配置（生产环境建议用自己的 TURN）
         this.iceServers = {
@@ -300,12 +301,16 @@ class WebRTCManager {
     }
 
     // === 处理 ICE Candidate ===
+    // 兼容批量（candidates 数组）和单个（candidate 对象）两种格式
     async handleIceCandidate(data) {
         if (!this.pc) return;
-        try {
-            await this.pc.addIceCandidate(new RTCIceCandidate(data.body.candidate));
-        } catch (error) {
-            console.error('Add ICE candidate error:', error);
+        const candidates = data.body.candidates || (data.body.candidate ? [data.body.candidate] : []);
+        for (const c of candidates) {
+            try {
+                await this.pc.addIceCandidate(new RTCIceCandidate(c));
+            } catch (error) {
+                console.error('Add ICE candidate error:', error);
+            }
         }
     }
 
@@ -322,19 +327,28 @@ class WebRTCManager {
             });
         };
 
-        // 收集 ICE Candidate
+        // 收集 ICE Candidate（不逐个发送，等收集完毕批量发送，避免高频触发限流）
+        this.iceBatch = [];
         this.pc.onicecandidate = (event) => {
             if (event.candidate) {
-                // 主叫方（isCalling=true）发给被叫方（calleeUserId）
-                // 被叫方（isCalling=false）发给主叫方（pendingCallFrom）
+                this.iceBatch.push(event.candidate);
+            }
+        };
+
+        // ICE 收集完成时批量发送所有 candidates
+        this.pc.onicegatheringstatechange = () => {
+            if (this.pc.iceGatheringState === 'complete') {
                 const targetUserId = this.isCalling ? this.calleeUserId : this.pendingCallFrom;
-                this.ws.send(JSON.stringify({
-                    type: 'webrtc-ice',
-                    body: {
-                        targetUserId: targetUserId,
-                        candidate: event.candidate,
-                    }
-                }));
+                if (targetUserId && this.iceBatch.length > 0) {
+                    this.ws.send(JSON.stringify({
+                        type: 'webrtc-ice',
+                        body: {
+                            targetUserId: targetUserId,
+                            candidates: this.iceBatch.slice(),
+                        }
+                    }));
+                }
+                this.iceBatch = [];
             }
         };
 

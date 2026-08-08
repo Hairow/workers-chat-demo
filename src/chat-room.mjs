@@ -222,9 +222,9 @@ export class ChatRoom {
     'call-user': { required: ['targetUserId'], optional: [], maxLen: {} },
     'call-rejected': { required: ['targetUserId'], optional: [], maxLen: {} },
     'call-accepted': { required: ['targetUserId', 'callId'], optional: [], maxLen: {} },
-    'webrtc-offer': { required: ['targetUserId', 'sdp'], optional: [], maxLen: {} },
-    'webrtc-answer': { required: ['targetUserId', 'sdp'], optional: [], maxLen: {} },
-    'webrtc-ice': { required: ['targetUserId', 'candidate'], optional: [], maxLen: {} },
+    'webrtc-offer': { required: ['targetUserId', 'sdp'], optional: ['callId'], maxLen: {} },
+    'webrtc-answer': { required: ['targetUserId', 'sdp'], optional: ['callId'], maxLen: {} },
+    'webrtc-ice': { required: ['targetUserId', 'candidates'], optional: [], maxLen: {} },
     hangup: { required: ['targetUserId'], optional: [], maxLen: {} },
 
   }
