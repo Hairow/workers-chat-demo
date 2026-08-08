@@ -908,7 +908,7 @@
                                 if (msg) self.addSysMsg('* ' + msg);
                             },
                             onError: function (msg) {
-                                self.addSysMsg('* 错误: ' + msg);
+                                alert(msg);
                             }
                         });
                         this.webrtcManager.init();
