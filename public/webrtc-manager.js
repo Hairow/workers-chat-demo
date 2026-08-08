@@ -15,6 +15,7 @@ class WebRTCManager {
         this.pendingCallFrom = null;  // 被叫方记录主叫方 userId
         this.callbacks = callbacks || {};  // 回调：onCallStateChange(active), onStatus(msg)
         this.iceBatch = [];           // 批量收集 ICE candidates
+        this.currentCallId = null;    // 当前通话 ID，用于 ICE 信令
 
         // ICE 服务器配置（生产环境建议用自己的 TURN）
         this.iceServers = {
@@ -167,6 +168,7 @@ class WebRTCManager {
             // 记录主叫方 userId，等收到 Offer 后再处理
             this.pendingCallFrom = fromUserId;
             this.isCalling = false;  // 被叫方不置 isCalling=true，由 handleOffer 后决定
+            this.currentCallId = callId;
             this._setCallActive(true);
 
             // 发送 call-accepted
@@ -188,6 +190,7 @@ class WebRTCManager {
     async handleCallAccept(data) {
         const fromUserId = data.body.fromUserId;
         const callId = data.body.callId;
+        this.currentCallId = callId;
 
         try {
             // 1. 获取本地媒体流
@@ -345,6 +348,7 @@ class WebRTCManager {
                         body: {
                             targetUserId: targetUserId,
                             candidates: this.iceBatch.slice(),
+                            callId: this.currentCallId,
                         }
                     }));
                 }
@@ -389,6 +393,7 @@ class WebRTCManager {
         this.isCalling = false;
         this.calleeUserId = null;
         this.pendingCallFrom = null;
+        this.currentCallId = null;
 
         const lv = document.getElementById('localVideo');
         const rv = document.getElementById('remoteVideo');

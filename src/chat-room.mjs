@@ -224,7 +224,7 @@ export class ChatRoom {
     'call-accepted': { required: ['targetUserId', 'callId'], optional: [], maxLen: {} },
     'webrtc-offer': { required: ['targetUserId', 'sdp'], optional: ['callId'], maxLen: {} },
     'webrtc-answer': { required: ['targetUserId', 'sdp'], optional: ['callId'], maxLen: {} },
-    'webrtc-ice': { required: ['targetUserId', 'candidates'], optional: [], maxLen: {} },
+    'webrtc-ice': { required: ['targetUserId', 'candidates'], optional: ['callId'], maxLen: {} },
     hangup: { required: ['targetUserId'], optional: [], maxLen: {} },
 
   }
@@ -511,7 +511,7 @@ export class ChatRoom {
 
   // === 处理接受呼叫 ===
   async handleCallAccepted(data, senderWs) {
-    // data 格式: { type: 'call-accepted', body:{targetUserId: 'xxx' }  }
+    // data 格式: { type: 'call-accepted', body:{targetUserId: 'xxx', callId: 'xxx' }  }
     const fromUserId = this.sessions.get(senderWs).userId;
     const targetUserId = data.body.targetUserId;
     const callId = data.body.callId;
@@ -573,9 +573,9 @@ export class ChatRoom {
 
   // === 转发 WebRTC 信令 ===
   async forwardWebRTCSignal(data, senderWs) {
-    // data 格式: { type: 'webrtc-offer', body:{targetUserId: 'xxx', sdp: {...}}  }
-    // data 格式: { type: 'webrtc-answer', body:{targetUserId: 'xxx', sdp: {...}}  }
-    // data 格式: { type: 'webrtc-ice', body:{targetUserId: 'xxx', candidate: 'xxx'}  }
+    // data 格式: { type: 'webrtc-offer', body:{targetUserId: 'xxx', sdp: {...}, callId: 'xxx'}  }
+    // data 格式: { type: 'webrtc-answer', body:{targetUserId: 'xxx', sdp: {...}, callId: 'xxx'}  }
+    // data 格式: { type: 'webrtc-ice', body:{targetUserId: 'xxx', candidates: [...], callId: 'xxx'}  }
 
     const fromUserId = this.sessions.get(senderWs).userId;
     const targetUserId = data.body.targetUserId;
