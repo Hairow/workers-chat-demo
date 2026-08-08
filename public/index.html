@@ -1023,7 +1023,7 @@
                     ws.addEventListener('close', (event) => {
                         // 非正常关闭（如 DO 热重启）→ 退回登录页
                         if (event.code !== 1000 && event.code !== 1001) {
-                            this.resetToLogin('会话已失效（服务器已更新），请重新进入。');
+                            this.resetToLogin('连接已断开，请重新进入。 (code=' + (event.code || '?') + ')');
                             return;
                         }
                         rejoin();
