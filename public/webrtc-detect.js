@@ -389,7 +389,7 @@ class WebRTCDetector {
 }
 
 // ============================================
-// 📦 导出单例
+// 📦 全局单例（以普通 <script> 方式加载，非 ES module）
 // ============================================
 
-export const webrtcDetector = new WebRTCDetector();
+window.webrtcDetector = new WebRTCDetector();

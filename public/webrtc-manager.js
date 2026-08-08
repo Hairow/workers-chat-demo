@@ -2,7 +2,7 @@
 // 注意：webrtc-detect.js 通过 <script> 加载，webrtcDetector 为全局变量
 
 class WebRTCManager {
-    constructor(ws, roomId, userId, userName) {
+    constructor(ws, roomId, userId, userName, callbacks) {
         this.ws = ws;
         this.roomId = roomId;
         this.userId = userId;
@@ -13,6 +13,7 @@ class WebRTCManager {
         this.isCalling = false;       // true = 主叫方已发出呼叫（等待或已建立）
         this.calleeUserId = null;     // 主叫方记录被叫方 userId
         this.pendingCallFrom = null;  // 被叫方记录主叫方 userId
+        this.callbacks = callbacks || {};  // 回调：onCallStateChange(active), onStatus(msg)
 
         // ICE 服务器配置（生产环境建议用自己的 TURN）
         this.iceServers = {
@@ -39,7 +40,7 @@ class WebRTCManager {
 
     // === 检查 WebRTC 能力（async） ===
     async checkWebRtc() {
-        const detectResult = await webrtcDetector.fullDetect();
+        const detectResult = await window.webrtcDetector.fullDetect();
         if (!detectResult.webRTC) {
             this.showError('您的浏览器不支持 WebRTC，请使用最新版的 Chrome、Firefox 或 Edge');
             return false;
@@ -51,21 +52,21 @@ class WebRTCManager {
             // 仅警告，不阻止（部分浏览器用 H264 也可互通）
         }
         // 检查摄像头权限
-        if (webrtcDetector.capabilities.permissions.camera === 'denied') {
+        if (window.webrtcDetector.capabilities.permissions.camera === 'denied') {
             this.showError('摄像头权限被拒绝，请到浏览器设置中允许访问');
             return false;
         }
         // 检查麦克风权限
-        if (webrtcDetector.capabilities.permissions.microphone === 'denied') {
+        if (window.webrtcDetector.capabilities.permissions.microphone === 'denied') {
             this.showError('麦克风权限被拒绝，请到浏览器设置中允许访问');
             return false;
         }
         // 检查是否有设备
-        if (webrtcDetector.capabilities.mediaDevices.cameras.length === 0) {
+        if (window.webrtcDetector.capabilities.mediaDevices.cameras.length === 0) {
             this.showError('未检测到摄像头设备');
             return false;
         }
-        if (webrtcDetector.capabilities.mediaDevices.microphones.length === 0) {
+        if (window.webrtcDetector.capabilities.mediaDevices.microphones.length === 0) {
             this.showError('未检测到麦克风设备');
             return false;
         }
@@ -110,6 +111,16 @@ class WebRTCManager {
                 // 对方挂断
                 this.hangup(true);
                 break;
+
+            case 'offer-error':
+            case 'answer-error':
+                // 信令错误
+                this.showError(data.body && data.body.error || 'WebRTC 信令错误');
+                break;
+
+            default:
+                console.warn('[WebRTC] 未处理的信令类型:', data.type);
+                break;
         }
     }
 
@@ -131,6 +142,7 @@ class WebRTCManager {
         }));
 
         this.showCallingUI(targetUserId);
+        this._setCallActive(true);  // 开始呼叫即进入通话状态
     }
 
     // === 接受通话（被叫方） ===
@@ -155,7 +167,7 @@ class WebRTCManager {
             // 记录主叫方 userId，等收到 Offer 后再处理
             this.pendingCallFrom = fromUserId;
             this.isCalling = false;  // 被叫方不置 isCalling=true，由 handleOffer 后决定
-            this.showCallUI(true);
+            this._setCallActive(true);
 
             // 发送 call-accepted
             this.ws.send(JSON.stringify({
@@ -208,19 +220,53 @@ class WebRTCManager {
                 }
             }));
 
-            this.showCallUI(true);
+            this._setCallActive(true);
         } catch (error) {
             console.error('handleCallAccept error:', error);
             this.showError('建立通话失败：' + error.message);
         }
     }
 
+    // === UI 控制（通过回调通知 Vue 层） ===
+    _setCallActive(active) {
+        const vc = document.getElementById('videoContainer');
+        if (vc) vc.style.display = active ? 'flex' : 'none';
+        if (typeof this.callbacks.onCallStateChange === 'function') {
+            this.callbacks.onCallStateChange(active);
+        }
+    }
+
+    _setStatus(msg) {
+        if (typeof this.callbacks.onStatus === 'function') {
+            this.callbacks.onStatus(msg);
+        }
+    }
+
+    // 拨出时显示"呼叫中"状态
+    showCallingUI(targetUserId) {
+        this._setStatus('呼叫中，等待对方接听...');
+    }
+
+    // 取消主叫（在对方接听前）
+    cancelCall() {
+        if (!this.calleeUserId) return;
+        this.ws.send(JSON.stringify({
+            type: 'hangup',
+            body: { targetUserId: this.calleeUserId }
+        }));
+        this.isCalling = false;
+        this.calleeUserId = null;
+        this._setCallActive(false);
+        this._setStatus(null);
+    }
+
     // === 处理对方拒绝呼叫 ===
     handleCallRejected(data) {
         this.isCalling = false;
         this.calleeUserId = null;
-        alert('对方拒绝了通话请求');
-        this.showCallUI(false);
+        this.showError('对方拒绝了通话请求');
+        this._setCallActive(false);
+        this._setStatus(null);
     }
 
     // === 处理 Offer（被叫方收到主叫方的 Offer）===
@@ -336,43 +382,8 @@ class WebRTCManager {
         if (lv) lv.srcObject = null;
         if (rv) rv.srcObject = null;
 
-        this.showCallUI(false);
-    }
-
-    // === UI 控制 ===
-    showCallUI(active) {
-        const vc = document.getElementById('videoContainer');
-        const hb = document.getElementById('hangupBtn');
-        const cc = document.getElementById('callControls');
-        if (vc) vc.style.display = active ? 'flex' : 'none';
-        if (hb) hb.style.display = active ? 'inline-block' : 'none';
-        if (cc) cc.style.display = active ? 'none' : 'block';
-    }
-
-    // 拨出时显示"呼叫中"状态
-    showCallingUI(targetUserId) {
-        const cc = document.getElementById('callControls');
-        if (cc) {
-            cc.innerHTML = '<span style="color:var(--text-secondary);font-size:13px;">呼叫中...</span>' +
-                '<button onclick="window._webrtcManager && window._webrtcManager.cancelCall()" ' +
-                'style="margin-left:8px;padding:4px 12px;border:1px solid var(--danger);' +
-                'color:var(--danger);background:none;border-radius:8px;cursor:pointer;font-size:12px;">取消</button>';
-        }
-    }
-
-    // 取消主叫（在对方接听前）
-    cancelCall() {
-        if (!this.calleeUserId) return;
-        this.ws.send(JSON.stringify({
-            type: 'hangup',
-            body: { targetUserId: this.calleeUserId }
-        }));
-        this.isCalling = false;
-        this.calleeUserId = null;
-        // 恢复呼叫按钮
-        if (typeof window._webrtcRestoreCallControls === 'function') {
-            window._webrtcRestoreCallControls();
-        }
+        this._setCallActive(false);
+        this._setStatus(null);
     }
 
     showIncomingCall(data) {
@@ -396,6 +407,10 @@ class WebRTCManager {
 
     showError(msg) {
         console.error('[WebRTC]', msg);
-        alert(msg);
+        if (typeof this.callbacks.onError === 'function') {
+            this.callbacks.onError(msg);
+        } else {
+            alert(msg);
+        }
     }
 }

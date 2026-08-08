@@ -574,6 +574,68 @@
             background: var(--accent);
             color: #fff;
         }
+
+        /* ── WebRTC 视频通话覆盖层 ────────────────── */
+        #videoContainer {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0, 0, 0, .9);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #remoteVideo {
+            width: 100%;
+            max-width: 640px;
+            max-height: 70vh;
+            border-radius: var(--radius);
+            background: #1a1a1a;
+            object-fit: cover;
+        }
+
+        #localVideo {
+            position: absolute;
+            bottom: 100px;
+            right: 24px;
+            width: 160px;
+            max-height: 140px;
+            border-radius: var(--radius);
+            border: 2px solid rgba(255, 255, 255, .3);
+            background: #1a1a1a;
+            object-fit: cover;
+            z-index: 101;
+        }
+
+        #hangupBtn {
+            margin-top: 16px;
+            padding: 8px 28px;
+            font-size: 14px;
+            font-family: inherit;
+            font-weight: 600;
+            color: #fff;
+            background: var(--danger);
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        #hangupBtn:hover {
+            background: #d63031;
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 500px) {
+            #localVideo {
+                bottom: 80px;
+                right: 12px;
+                width: 120px;
+                max-height: 100px;
+            }
+        }
     </style>
 </head>
 
@@ -706,6 +768,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.min.js"></script>
+    <script src="./webrtc-detect.js"></script>
     <script src="./webrtc-manager.js"></script>
     <script>
         var app = new Vue({
@@ -738,6 +801,10 @@
                 authToken: '',
                 _fileDialogOpen: false,
                 uploading: false,
+
+                // WebRTC 通话相关
+                inCall: false,              // 是否正在通话中
+                webrtcManager: null,        // WebRTC 管理器实例
             },
             computed: {
                 isMediaType() { return ['image', 'audio', 'video'].includes(this.currentMsgType); },
@@ -829,6 +896,21 @@
                         this.ws = ws;
                         // Name is already verified via JWT — no need to send a name message.
                         // 用户名已通过 JWT 验证，无需再发送名称消息。
+
+                        // 初始化 WebRTC 管理器
+                        var self = this;
+                        this.webrtcManager = new WebRTCManager(ws, this.roomname, this.username, this.username, {
+                            onCallStateChange: function (active) {
+                                self.inCall = active;
+                            },
+                            onStatus: function (msg) {
+                                if (msg) self.addSysMsg('* ' + msg);
+                            },
+                            onError: function (msg) {
+                                self.addSysMsg('* 错误: ' + msg);
+                            }
+                        });
+                        this.webrtcManager.init();
                     });
 
                     ws.addEventListener('message', (event) => {
@@ -851,6 +933,12 @@
                                 }
                             }
                         } else if (data.type && data.body) {
+                            // 过滤 WebRTC 信令消息（由 WebRTCManager 处理）
+                            var webrtcTypes = ['incoming-call', 'call-accepted', 'call-rejected',
+                                'webrtc-offer', 'webrtc-answer', 'webrtc-ice',
+                                'peer-hangup', 'offer-error', 'answer-error', 'call-user'];
+                            if (webrtcTypes.indexOf(data.type) !== -1) return;
+
                             // Calculate and log the time difference between message send and receipt.
                             // 计算并打印消息发送到接收的时间差。
                             var now = Date.now();
@@ -1007,6 +1095,18 @@
                 // ── Image preview ──────────────────────────
                 openPreview: function (url) {
                     this.previewUrl = url;
+                },
+
+                // ── WebRTC 通话 ─────────────────────────
+                callUser: function (user) {
+                    if (!this.webrtcManager || this.inCall) return;
+                    this.webrtcManager.startCallUser(user.name);
+                },
+                hangupCall: function () {
+                    if (this.webrtcManager) {
+                        this.webrtcManager.hangup();
+                    }
+                    this.inCall = false;
                 },
 
                 // ── Roster ─────────────────────────────────
