@@ -701,9 +701,10 @@ export class ChatRoom {
     }
   }
 
-
   // === 广播挂断 ===
   async broadcastHangup(data, senderWs) {
+    const callId = data.body.callId;
+    if (callId) this.callStates.delete(callId);
     // data 格式: { type: 'hangup', body:{targetUserId: 'xxx' }  }
     for (const [webSocket, s] of this.sessions) {
       if (webSocket !== senderWs && webSocket.readyState === WebSocket.OPEN) {

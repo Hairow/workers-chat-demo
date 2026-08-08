@@ -12,8 +12,7 @@ class WebRTCDetector {
             },
             mediaDevices: {
                 cameras: [],
-                microphones: [],
-                speakers: []
+                microphones: []
             },
             permissions: {
                 camera: 'prompt', // 'granted' | 'denied' | 'prompt' | 'unsupported'
@@ -258,35 +257,16 @@ class WebRTCDetector {
     }
 
     // ============================================
-    // 6️⃣ 错误码映射
-    // ============================================
-
-    getErrorCode(error) {
-        const errorMap = {
-            'NotAllowedError': 1,        // 用户拒绝
-            'PermissionDeniedError': 1,  // 用户拒绝
-            'NotFoundError': 2,          // 没有设备
-            'DevicesNotFoundError': 2,   // 没有设备
-            'NotReadableError': 3,       // 设备不可读
-            'AbortError': 4,             // 中止
-            'OverconstrainedError': 5,   // 约束过严
-            'TypeError': 6,              // 参数错误
-            'SecurityError': 7,          // 安全错误（非 HTTPS）
-        };
-
-        return errorMap[error.name] || 0;
-    }
-
-    // ============================================
-    // 7️⃣ 权限变化回调
+    // 6️⃣ 权限变化回调
     // ============================================
 
     onPermissionChange(type, state) {
-        console.log(`权限变化: ${type} -> ${state}`);
+        // 权限变化时更新 capabilities
+        this.capabilities.permissions[type] = state;
     }
 
     // ============================================
-    // 8️⃣ 一键完整检测
+    // 7️⃣ 一键完整检测
     // ============================================
 
     async fullDetect() {
