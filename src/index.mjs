@@ -109,10 +109,9 @@ export default {
       let url = new URL(request.url);
       let path = url.pathname.slice(1).split('/');
 
-      if (!path[0]) {
-        // Serve our HTML at the root path.
-        // 在根路径提供 HTML 页面。
-        return new Response(HTML, { headers: { "Content-Type": "text/html;charset=UTF-8" } });
+      // 根路径重定向到 index.html
+      if (url.pathname === '/') {
+        return Response.redirect(url.origin + '/index.html', 302);
       }
 
       switch (path[0]) {
