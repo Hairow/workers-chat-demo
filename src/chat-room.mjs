@@ -28,7 +28,6 @@ export class ChatRoom {
     this.sessions = new Map();
 
     // 存储每个用户的 WebRTC 连接状态（可选）
-    this.users = new Map(); // session -> userId
     this.callStates = new Map(); // callId -> { caller, callee, state, ... }
 
     this.state.getWebSockets().forEach((webSocket) => {
@@ -55,6 +54,7 @@ export class ChatRoom {
       // 在那之前，消息会被暂存到 `session.blockedMessages` 队列中。
       // 这些消息可能非常大，所以不放在 attachment 中。
       // 休眠恢复时，所有连接都已完成认证，blockedMessages 不再需要队列。
+      // meta 中已包含 userId（从 attachment 反序列化），直接存入 session
       this.sessions.set(webSocket, { ...meta, limiter });
     });
 
@@ -166,14 +166,12 @@ export class ChatRoom {
       session.name = verifiedName;
     }
 
-    // attach limiterId, name, ip to the webSocket so they survive hibernation
-    // 将 limiterId、ip 附加到 webSocket，使其在休眠时也能保留
-    webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip, name: session.name });
-    this.sessions.set(webSocket, session);
+    session.userId = crypto.randomUUID();
 
-    // 生成用户ID（可以用 WebSocket 对象本身做标识）
-    const userId = crypto.randomUUID();
-    this.users.set(webSocket, userId);
+    // attach limiterId, name, ip, userId to the webSocket so they survive hibernation
+    // 将 limiterId、ip、name、userId 附加到 webSocket，使其在休眠时也能保留
+    webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip, name: session.name, userId: session.userId });
+    this.sessions.set(webSocket, session);
 
     // Queue "join" messages for all OTHER online users, to populate the client's roster.
     // The new session itself is excluded — its own join is broadcast separately below.
@@ -221,7 +219,7 @@ export class ChatRoom {
     audio: { required: ["uploadId"], optional: ["duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     video: { required: ["uploadId"], optional: ["duration", "filename", "mimeType", "size", "replyTo"], maxLen: { filename: 256 } },
     location: { required: ["lat", "lng", "name"], optional: ["replyTo"], maxLen: { name: 128 } },
-    'call-user': { required: ['targetUserId', 'fromUserName'], optional: [], maxLen: {} },
+    'call-user': { required: ['targetUserName'], optional: [], maxLen: {} },
     'call-rejected': { required: ['targetUserId'], optional: [], maxLen: {} },
     'call-accepted': { required: ['targetUserId', 'callId'], optional: [], maxLen: {} },
     'webrtc-offer': { required: ['targetUserId', 'sdp'], optional: [], maxLen: {} },
@@ -411,7 +409,6 @@ export class ChatRoom {
     if (session.name) {
       this.broadcast({ quit: session.name, ip: session.ip });
     }
-    this.users.delete(webSocket);
   }
 
   async webSocketClose(webSocket, code, reason, wasClean) {
@@ -473,10 +470,25 @@ export class ChatRoom {
 
   // === 处理通话请求 ===
   async handleCallRequest(data, senderWs) {
-    // data 格式: { type: 'call-user', body:{targetUserId: 'xxx', fromUserName: 'xxx' }  }
-    const fromUserId = this.users.get(senderWs);
-    const targetUserId = data.body.targetUserId;
+    // data.body.targetUserName 是目标用户名，通过 sessions 按名称查找目标
+    const callerSession = this.sessions.get(senderWs);
+    const fromUserId = callerSession.userId;
+    const fromUserName = callerSession.name;
+    const targetName = data.body.targetUserName;
     const callId = crypto.randomUUID();
+
+    // 在 sessions 中按名称查找目标 websocket
+    let targetWs = null;
+    for (const [ws, session] of this.sessions) {
+      if (session.name === targetName && ws.readyState === WebSocket.OPEN) {
+        targetWs = ws;
+        break;
+      }
+    }
+
+    if (!targetWs) return;
+
+    const targetUserId = this.sessions.get(targetWs).userId;
 
     const callState = {
       id: callId,
@@ -489,28 +501,21 @@ export class ChatRoom {
       answerTimestamp: null,
     }
 
-
-    for (const [webSocket, userId] of this.users) {
-      if (userId === targetUserId && webSocket.readyState === WebSocket.OPEN) {
-        webSocket.send(JSON.stringify({
-          type: 'incoming-call',
-          body: {
-            ...data.body,
-            fromUserId: fromUserId,
-            callId: callId,
-          }
-        }));
-        // 保存呼叫状态
-        this.callStates.set(callId, callState);
-        break;
+    targetWs.send(JSON.stringify({
+      type: 'incoming-call',
+      body: {
+        fromUserId: fromUserId,
+        fromUserName: fromUserName,
+        callId: callId,
       }
-    }
+    }));
+    this.callStates.set(callId, callState);
   }
 
   // === 处理接受呼叫 ===
   async handleCallAccepted(data, senderWs) {
     // data 格式: { type: 'call-accepted', body:{targetUserId: 'xxx' }  }
-    const fromUserId = this.users.get(senderWs);
+    const fromUserId = this.sessions.get(senderWs).userId;
     const targetUserId = data.body.targetUserId;
     const callId = data.body.callId;
 
@@ -530,8 +535,8 @@ export class ChatRoom {
       return;
     }
 
-    for (const [ws, userId] of this.users) {
-      if (userId === targetUserId && ws.readyState === WebSocket.OPEN) {
+    for (const [ws, s] of this.sessions) {
+      if (s.userId === targetUserId && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
           type: 'call-accepted',
           body: {
@@ -550,12 +555,12 @@ export class ChatRoom {
   // === 处理拒绝呼叫 ===
   async handleCallRejected(data, senderWs) {
     // data 格式: { type: 'call-rejected', body:{targetUserId: 'xxx' }  }
-    const fromUserId = this.users.get(senderWs);
+    const fromUserId = this.sessions.get(senderWs).userId;
     const targetUserId = data.body.targetUserId;
     const reason = data.body.reason || 'rejected'; // 可选：'busy', 'timeout', 'declined'
 
-    for (const [ws, userId] of this.users) {
-      if (userId === targetUserId && ws.readyState === WebSocket.OPEN) {
+    for (const [ws, s] of this.sessions) {
+      if (s.userId === targetUserId && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
           type: 'call-rejected',
           body: {
@@ -575,7 +580,7 @@ export class ChatRoom {
     // data 格式: { type: 'webrtc-answer', body:{targetUserId: 'xxx', sdp: {...}}  }
     // data 格式: { type: 'webrtc-ice', body:{targetUserId: 'xxx', candidate: 'xxx'}  }
 
-    const fromUserId = this.users.get(senderWs);
+    const fromUserId = this.sessions.get(senderWs).userId;
     const targetUserId = data.body.targetUserId;
     const callId = data.body.callId;
     const callState = this.callStates.get(callId);
@@ -668,8 +673,8 @@ export class ChatRoom {
     }
 
     // 找到目标用户的 WebSocket
-    for (const [webSocket, userId] of this.users) {
-      if (userId === targetUserId && webSocket.readyState === WebSocket.OPEN) {
+    for (const [webSocket, s] of this.sessions) {
+      if (s.userId === targetUserId && webSocket.readyState === WebSocket.OPEN) {
         webSocket.send(JSON.stringify({
           type: data.type,
           body: {
@@ -696,13 +701,13 @@ export class ChatRoom {
   // === 广播挂断 ===
   async broadcastHangup(data, senderWs) {
     // data 格式: { type: 'hangup', body:{targetUserId: 'xxx' }  }
-    for (const [webSocket, userId] of this.users) {
+    for (const [webSocket, s] of this.sessions) {
       if (webSocket !== senderWs && webSocket.readyState === WebSocket.OPEN) {
         webSocket.send(JSON.stringify({
           type: 'peer-hangup',
           body: {
             ...data.body,
-            fromUserId: this.users.get(senderWs)
+            fromUserId: this.sessions.get(senderWs).userId
           }
         }));
       }

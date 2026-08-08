@@ -937,7 +937,7 @@
                             // 过滤 WebRTC 信令消息（由 WebRTCManager 处理）
                             var webrtcTypes = ['incoming-call', 'call-accepted', 'call-rejected',
                                 'webrtc-offer', 'webrtc-answer', 'webrtc-ice',
-                                'peer-hangup', 'offer-error', 'answer-error', 'call-user'];
+                                'peer-hangup', 'offer-error', 'answer-error'];
                             if (webrtcTypes.indexOf(data.type) !== -1) return;
 
                             // Calculate and log the time difference between message send and receipt.
