@@ -299,6 +299,7 @@ async function handleApiRequest(path, request, env) {
         // 将请求转发给 DO，并附加已验证的用户名到头中。
         let verifiedRequest = new Request(newUrl, request);
         verifiedRequest.headers.set("X-Verified-Name", payload.sub);
+        console.error('before room fetch')
         return roomObject.fetch(newUrl, verifiedRequest);
       }
 
