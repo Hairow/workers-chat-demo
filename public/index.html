@@ -868,7 +868,7 @@
                     var rejoined = false;
                     var startTime = Date.now();
 
-                    var rejoin = () => {
+                    var rejoin = (reason) => {
                         if (rejoined) return;
                         rejoined = true;
                         this.ws = null;
@@ -876,7 +876,7 @@
                         this.connRetries++;
                         if (this.connRetries >= 5) {
                             this.connStatus = 'offline';
-                            this.addSysMsg('* 连接失败，已尝试重连 ' + this.connRetries + ' 次，请刷新页面重试。');
+                            this.addSysMsg('* 连接失败(' + (reason || '?') + ')，已重试 ' + this.connRetries + ' 次，请刷新页面重试。');
                             return;
                         }
                         var elapsed = Date.now() - startTime;
@@ -958,8 +958,8 @@
                         }
                     });
 
-                    ws.addEventListener('close', rejoin);
-                    ws.addEventListener('error', () => { rejoin(); });
+                    ws.addEventListener('close', (e) => { rejoin('close ' + (e.code || '?')); });
+                    ws.addEventListener('error', () => { rejoin('error'); });
                 },
 
                 // ── Send ───────────────────────────────────
