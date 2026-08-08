@@ -286,6 +286,25 @@ class WebRTCManager {
     async handleAnswer(data) {
         if (!this.pc) return;
         await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
+        // answer 到位后才可发送 ICE candidates
+        this._flushIce();
+    }
+
+    // === 发送缓存的 ICE candidates（需 setRemoteDescription 完成后） ===
+    _flushIce() {
+        if (!this.pc || !this.pc.remoteDescription) return;
+        const targetUserId = this.isCalling ? this.calleeUserId : this.pendingCallFrom;
+        if (targetUserId && this.iceBatch.length > 0) {
+            this.ws.send(JSON.stringify({
+                type: 'webrtc-ice',
+                body: {
+                    targetUserId: targetUserId,
+                    candidates: this.iceBatch.slice(),
+                    callId: this.currentCallId,
+                }
+            }));
+        }
+        this.iceBatch = [];
     }
 
     // === 处理 ICE Candidate ===
@@ -323,21 +342,10 @@ class WebRTCManager {
             }
         };
 
-        // ICE 收集完成时批量发送所有 candidates
+        // ICE 收集完成后，等 setRemoteDescription 后才能发送候选
         this.pc.onicegatheringstatechange = () => {
             if (this.pc.iceGatheringState === 'complete') {
-                const targetUserId = this.isCalling ? this.calleeUserId : this.pendingCallFrom;
-                if (targetUserId && this.iceBatch.length > 0) {
-                    this.ws.send(JSON.stringify({
-                        type: 'webrtc-ice',
-                        body: {
-                            targetUserId: targetUserId,
-                            candidates: this.iceBatch.slice(),
-                            callId: this.currentCallId,
-                        }
-                    }));
-                }
-                this.iceBatch = [];
+                this._flushIce();
             }
         };
 
