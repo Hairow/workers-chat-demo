@@ -54,8 +54,8 @@ export class ChatRoom {
       // 在客户端发送初始用户信息消息之前，我们不会向它发送任何消息。
       // 在那之前，消息会被暂存到 `session.blockedMessages` 队列中。
       // 这些消息可能非常大，所以不放在 attachment 中。
-      let blockedMessages = [];
-      this.sessions.set(webSocket, { ...meta, limiter, blockedMessages });
+      // 休眠恢复时，所有连接都已完成认证，blockedMessages 不再需要队列。
+      this.sessions.set(webSocket, { ...meta, limiter });
     });
 
     // We keep track of the last-seen message's timestamp just so that we can assign monotonically

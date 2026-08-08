@@ -114,12 +114,20 @@ export default {
         return Response.redirect(url.origin + '/index.html', 302);
       }
 
+      // 优先匹配静态文件（public 目录）
+      try {
+        let assetResponse = await env.ASSETS.fetch(request);
+        if (assetResponse.status !== 404) {
+          return assetResponse;
+        }
+      } catch (e) {
+        // ASSETS 不可用时忽略，走后续路由
+      }
+
+      // API 路由
       switch (path[0]) {
         case "api":
-          // This is a request for `/api/...`, call the API handler.
-          // 这是一个 `/api/...` 请求，调用 API 处理器。
           return handleApiRequest(path.slice(1), request, env);
-
         default:
           return new Response("Not found", { status: 404 });
       }
