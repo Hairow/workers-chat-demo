@@ -114,15 +114,6 @@ export default {
         return Response.redirect(url.origin + '/index.html', 302);
       }
 
-      // 优先匹配静态文件（public 目录）
-      try {
-        let assetResponse = await env.ASSETS.fetch(request);
-        if (assetResponse.status !== 404) {
-          return assetResponse;
-        }
-      } catch (e) {
-        // ASSETS 不可用时忽略，走后续路由
-      }
 
       // API 路由
       switch (path[0]) {
