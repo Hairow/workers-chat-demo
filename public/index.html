@@ -217,6 +217,20 @@
             color: var(--text-secondary);
         }
 
+        .auth-error {
+            margin-top: 16px;
+            padding: 10px 16px;
+            max-width: 280px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.5;
+            color: #fff;
+            background: var(--danger);
+            border-radius: 10px;
+            animation: msgIn 0.25s ease-out;
+        }
+
         @media (max-width:500px) {
             .modal-input {
                 width: 220px;
@@ -647,8 +661,9 @@
         <!-- ── Name Chooser ─────────────────────────── -->
         <form v-if="step === 'name'" class="modal-overlay" @submit.prevent="confirmName">
             <input class="modal-input" v-model="username" placeholder="your name" maxlength="32" ref="nameInput"
-                autofocus>
-            <p
+                autofocus @input="authError = ''">
+            <p v-if="authError" class="auth-error">{{ authError }}</p>
+            <p v-else
                 style="margin-top:20px;max-width:360px;padding:0 16px;text-align:center;font-size:13px;color:var(--text-secondary);line-height:1.6;">
                 This chat runs entirely on the edge, powered by<br>
                 <a href="https://blog.cloudflare.com/introducing-workers-durable-objects" target="_blank"
@@ -778,6 +793,7 @@
             data: {
                 step: 'name',        // 'name' | 'room' | 'chat'
                 username: '',
+                authError: '',       // 认证失败提示
                 roomname: '',
                 messages: [],        // { sender?, text } for system/notification messages
                 chatMessages: [],    // { type, body, name, ts } for typed messages
@@ -845,13 +861,13 @@
                         });
                         if (!res.ok) {
                             var err = await res.text();
-                            alert('Auth failed: ' + err);
+                            this.authError = err || '认证失败，请检查用户名后重试';
                             return;
                         }
                         var data = await res.json();
                         this.authToken = data.token;
                     } catch (e) {
-                        alert('Auth request failed: ' + e.message);
+                        this.authError = '网络请求失败: ' + e.message;
                         return;
                     }
 
