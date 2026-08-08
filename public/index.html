@@ -1020,8 +1020,34 @@
                         }
                     });
 
-                    ws.addEventListener('close', rejoin);
-                    ws.addEventListener('error', rejoin);
+                    ws.addEventListener('close', (event) => {
+                        // 非正常关闭（如 DO 热重启）→ 退回登录页
+                        if (event.code !== 1000 && event.code !== 1001) {
+                            this.resetToLogin('会话已失效（服务器已更新），请重新进入。');
+                            return;
+                        }
+                        rejoin();
+                    });
+                    ws.addEventListener('error', () => { rejoin(); });
+                },
+
+                resetToLogin: function (msg) {
+                    if (this.webrtcManager) {
+                        this.webrtcManager.hangup();
+                        this.webrtcManager = null;
+                    }
+                    this.ws = null;
+                    this.roster = [];
+                    this.chatMessages = [];
+                    this.lastTs = 0;
+                    this.wroteWelcome = false;
+                    this.connStatus = '';
+                    this.connRetries = 0;
+                    this.authError = msg || '';
+                    this.step = 'name';
+                    this.$nextTick(() => {
+                        if (this.$refs.nameInput) this.$refs.nameInput.focus();
+                    });
                 },
 
                 // ── Send ───────────────────────────────────
