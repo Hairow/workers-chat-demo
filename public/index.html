@@ -516,8 +516,8 @@
             font-family: inherit;
             font-weight: 500;
             color: var(--accent);
-            background: rgba(0,113,227,.08);
-            border: 1px solid rgba(0,113,227,.2);
+            background: rgba(0, 113, 227, .08);
+            border: 1px solid rgba(0, 113, 227, .2);
             border-radius: 11px;
             cursor: pointer;
             transition: all var(--transition);
@@ -538,11 +538,13 @@
             font-weight: 500;
             color: #fff;
             background: #f0a030;
-            border-bottom: 1px solid rgba(0,0,0,.1);
+            border-bottom: 1px solid rgba(0, 0, 0, .1);
         }
+
         .conn-banner.offline {
             background: var(--danger);
         }
+
         .conn-banner a {
             color: #fff;
             font-weight: 700;
@@ -636,7 +638,8 @@
             <!-- Connection status banner -->
             <div v-if="connStatus" class="conn-banner" :class="{ offline: connStatus === 'offline' }">
                 <template v-if="connStatus === 'connecting'">正在连接中，请稍候...</template>
-                <template v-else-if="connStatus === 'offline'">连接失败，已尝试重连 5 次仍无法连接，请<a href="javascript:location.reload()">刷新页面</a></template>
+                <template v-else-if="connStatus === 'offline'">连接失败，已尝试重连 5 次仍无法连接，请<a
+                        href="javascript:location.reload()">刷新页面</a></template>
             </div>
 
             <!-- Chat log -->
@@ -743,7 +746,7 @@
         <!-- 视频通话 overlay -->
         <div id="videoContainer">
             <video id="remoteVideo" autoplay playsinline></video>
-            <video id="localVideo"  autoplay muted   playsinline></video>
+            <video id="localVideo" autoplay muted playsinline></video>
             <button id="hangupBtn" type="button" @click="hangupCall">挂断</button>
         </div>
 
@@ -874,11 +877,13 @@
                         this.ws = null;
                         this.roster = [];
                         this.connRetries++;
+
                         if (this.connRetries >= 5) {
                             this.connStatus = 'offline';
                             this.addSysMsg('* 连接失败(' + (reason || '?') + ')，已重试 ' + this.connRetries + ' 次，请刷新页面重试。');
                             return;
                         }
+                        this.addSysMsg('* 连接断开(' + (reason || '?') + ')，正在重试 (' + this.connRetries + '/5)...');
                         var elapsed = Date.now() - startTime;
                         var delay = Math.min(this.connRetries * 2000, 10000);
                         setTimeout(() => { this.join(); }, elapsed < delay ? delay - elapsed : 0);
