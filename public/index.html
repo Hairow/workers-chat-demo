@@ -590,6 +590,27 @@
             color: #fff;
         }
 
+        /* ── Connection status banner ──────────────── */
+        .conn-banner {
+            flex-shrink: 0;
+            width: 100%;
+            padding: 10px 16px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: #fff;
+            background: #f0a030;
+            border-bottom: 1px solid rgba(0,0,0,.1);
+        }
+        .conn-banner.offline {
+            background: var(--danger);
+        }
+        .conn-banner a {
+            color: #fff;
+            font-weight: 700;
+            text-decoration: underline;
+        }
+
         /* ── WebRTC 视频通话覆盖层 ────────────────── */
         #videoContainer {
             display: none;
@@ -673,6 +694,12 @@
 
         <!-- ── Chat Interface ───────────────────────── -->
         <form v-if="step === 'chat'" id="chatroom" action="/fake-form-action" @submit.prevent>
+
+            <!-- Connection status banner -->
+            <div v-if="connStatus" class="conn-banner" :class="{ offline: connStatus === 'offline' }">
+                <template v-if="connStatus === 'connecting'">正在连接中，请稍候...</template>
+                <template v-else-if="connStatus === 'offline'">连接失败，已尝试重连 5 次仍无法连接，请<a href="javascript:location.reload()">刷新页面</a></template>
+            </div>
 
             <!-- Chat log -->
             <div id="chatlog" ref="chatlog" @scroll="onScroll">
@@ -794,6 +821,8 @@
                 step: 'name',        // 'name' | 'room' | 'chat'
                 username: '',
                 authError: '',       // 认证失败提示
+                connStatus: '',       // WebSocket 连接状态: '' | 'connecting' | 'offline'
+                connRetries: 0,       // 重连次数
                 roomname: '',
                 messages: [],        // { sender?, text } for system/notification messages
                 chatMessages: [],    // { type, body, name, ts } for typed messages
@@ -893,6 +922,7 @@
                 },
 
                 join: function () {
+                    this.connStatus = 'connecting';
                     var wss = document.location.protocol === 'http:' ? 'ws://' : 'wss://';
                     var ws = new WebSocket(
                         wss + this.hostname + '/api/room/' + this.roomname + '/websocket?token=' + encodeURIComponent(this.authToken)
@@ -905,13 +935,21 @@
                         rejoined = true;
                         this.ws = null;
                         this.roster = [];
+                        this.connRetries++;
+                        if (this.connRetries >= 5) {
+                            this.connStatus = 'offline';
+                            this.addSysMsg('* 连接失败，已尝试重连 ' + this.connRetries + ' 次，请刷新页面重试。');
+                            return;
+                        }
                         var elapsed = Date.now() - startTime;
-                        var delay = elapsed < 10000 ? 10000 - elapsed : 0;
-                        setTimeout(() => { this.join(); }, delay);
+                        var delay = Math.min(this.connRetries * 2000, 10000);
+                        setTimeout(() => { this.join(); }, elapsed < delay ? delay - elapsed : 0);
                     };
 
                     ws.addEventListener('open', () => {
                         this.ws = ws;
+                        this.connStatus = '';
+                        this.connRetries = 0;
                         // Name is already verified via JWT — no need to send a name message.
                         // 用户名已通过 JWT 验证，无需再发送名称消息。
 
@@ -925,7 +963,7 @@
                                 if (msg) self.addSysMsg('* ' + msg);
                             },
                             onError: function (msg) {
-                                alert(msg);
+                                self.addSysMsg('* Error: ' + msg);
                             }
                         });
                         this.webrtcManager.init();
