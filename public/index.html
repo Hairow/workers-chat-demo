@@ -863,7 +863,7 @@
                     this.connStatus = 'connecting';
                     var wss = document.location.protocol === 'http:' ? 'ws://' : 'wss://';
                     var ws = new WebSocket(
-                        wss + this.hostname + '/api/room/' + this.roomname + '/websocket?token=' + encodeURIComponent(this.authToken)
+                        wss + this.hostname + '/api/room/' + this.roomname + '/create?token=' + encodeURIComponent(this.authToken)
                     );
                     var rejoined = false;
                     var startTime = Date.now();
