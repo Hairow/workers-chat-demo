@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备检测</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --card-bg: #16213e;
+            --card-hover: #1c2850;
+            --accent: #4f8cff;
+            --accent-hover: #3a6fd8;
+            --text: #e0e0e0;
+            --text-secondary: #8892a4;
+            --green: #2ecc71;
+            --red: #e74c3c;
+            --yellow: #f1c40f;
+            --blue: #3498db;
+            --border: #2a3a5c;
+            --radius: 10px;
+            --transition: 0.2s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 24px 16px 60px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 680px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        header h1 {
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        header p {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .summary-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .summary-chip {
+            flex: 1;
+            min-width: 120px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            text-align: center;
+        }
+        .summary-chip .icon {
+            font-size: 22px;
+            margin-bottom: 4px;
+        }
+        .summary-chip .label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .summary-chip .val {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+        .summary-chip.ok .val { color: var(--green); }
+        .summary-chip.warn .val { color: var(--yellow); }
+        .summary-chip.fail .val { color: var(--red); }
+        .summary-chip.checking .val { color: var(--blue); }
+
+        .section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 14px;
+            border: 1px solid var(--border);
+        }
+        .section h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section h3 .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: auto;
+        }
+        .status-dot.ok { background: var(--green); }
+        .status-dot.warn { background: var(--yellow); }
+        .status-dot.fail { background: var(--red); }
+        .status-dot.idle { background: var(--text-secondary); }
+
+        .check-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 13px;
+        }
+        .check-row:last-child { border-bottom: none; }
+        .check-row .key { color: var(--text-secondary); }
+        .check-row .val { font-weight: 500; }
+        .check-row .val.pass { color: var(--green); }
+        .check-row .val.fail { color: var(--red); }
+        .check-row .val.warn { color: var(--yellow); }
+
+        .device-tag {
+            display: inline-block;
+            background: rgba(79, 140, 255, 0.12);
+            color: var(--accent);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin: 2px 4px 2px 0;
+        }
+
+        video, canvas {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 8px;
+            background: #000;
+            display: block;
+            margin: 10px auto;
+        }
+
+        .audio-bar-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 10px auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .audio-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .audio-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 0.08s linear;
+        }
+        .audio-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            min-width: 64px;
+            text-align: right;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+            transition: background var(--transition), border-color var(--transition);
+        }
+        button:hover {
+            background: var(--card-hover);
+            border-color: var(--accent);
+        }
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        button.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+        button.primary:hover {
+            background: var(--accent-hover);
+        }
+        button.danger {
+            border-color: var(--red);
+            color: var(--red);
+        }
+        button.danger:hover {
+            background: rgba(231, 76, 60, 0.12);
+        }
+
+        .ice-log {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            max-height: 140px;
+            overflow-y: auto;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            line-height: 1.8;
+        }
+        .ice-log .found { color: var(--green); }
+        .ice-log .fail { color: var(--red); }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>设备 & 网络检测</h1>
+            <p>请允许摄像头 / 麦克风权限以获得完整检测结果</p>
+        </header>
+
+        <!-- Summary -->
+        <div class="summary-bar" id="summary"></div>
+
+        <!-- WebRTC 支持 -->
+        <div class="section" id="sect-webrtc">
+            <h3>浏览器 WebRTC 支持 <span class="status-dot idle" id="dot-webrtc"></span></h3>
+            <div id="rows-webrtc"></div>
+        </div>
+
+        <!-- 编解码器 -->
+        <div class="section" id="sect-codecs">
+            <h3>编解码器 <span class="status-dot idle" id="dot-codecs"></span></h3>
+            <div id="rows-codecs"></div>
+        </div>
+
+        <!-- 设备列表 -->
+        <div class="section" id="sect-devices">
+            <h3>媒体设备 <span class="status-dot idle" id="dot-devices"></span></h3>
+            <div id="rows-devices"></div>
+        </div>
+
+        <!-- 摄像头预览 + 麦克风音量 -->
+        <div class="section" id="sect-preview">
+            <h3>实时测试 <span class="status-dot idle" id="dot-preview"></span></h3>
+            <video id="videoPreview" class="hidden" autoplay muted playsinline></video>
+            <div class="audio-bar-container hidden" id="audioMeterWrap">
+                <span style="font-size:12px;">🎤</span>
+                <div class="audio-bar"><div class="audio-bar-fill" id="audioBarFill"></div></div>
+                <span class="audio-label" id="audioLabel">- dB</span>
+            </div>
+            <canvas id="audioCanvas" class="hidden" width="400" height="60"></canvas>
+            <div class="btn-row">
+                <button class="primary" id="btnPreview" onclick="togglePreview()">预览摄像头</button>
+                <button id="btnAudio" onclick="toggleAudioTest()">麦克风测试</button>
+            </div>
+        </div>
+
+        <!-- ICE / 网络连通性 -->
+        <div class="section" id="sect-ice">
+            <h3>网络连通性 (ICE) <span class="status-dot idle" id="dot-ice"></span></h3>
+            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">
+                通过 STUN 服务器检测 NAT 穿越能力 — 能否建立 P2P 连接
+            </p>
+            <div class="btn-row">
+                <button class="primary" id="btnIce" onclick="testICE()">开始检测</button>
+            </div>
+            <div class="ice-log" id="iceLog" style="display:none;"></div>
+        </div>
+
+        <!-- 综合结论 -->
+        <div class="section" id="sect-verdict" style="display:none;">
+            <h3>综合评估 <span class="status-dot idle" id="dot-verdict"></span></h3>
+            <div id="verdictText" style="font-size:13px;line-height:1.7;"></div>
+        </div>
+    </div>
+
+    <!-- 引入现有 WebRTCDetector -->
+    <script src="webrtc-detect.js"></script>
+
+    <script>
+        // ── 状态 ──
+        let previewStream = null;
+        let audioStream = null;
+        let audioCtx = null;
+        let analyserNode = null;
+        let animFrame = null;
+        let currentMode = null;       // 'preview' | 'audio'
+        let detectorResult = null;
+
+        // ── 加载时全量检测 ──
+        window.addEventListener('DOMContentLoaded', () => {
+            fullCheck();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            stopPreview();
+            stopAudioTest();
+            if (audioCtx) { audioCtx.close(); audioCtx = null; }
+        });
+
+        // ============================================================
+        //  完整检测流程
+        // ============================================================
+        async function fullCheck() {
+            const detector = window.webrtcDetector;
+            if (!detector) {
+                showFatal('WebRTCDetector 未加载，请刷新页面');
+                return;
+            }
+
+            // 1. WebRTC 支持
+            const webRTC = detector.checkWebRTCSupport();
+            renderWebRTC(detector.capabilities);
+            setDot('webrtc', webRTC);
+
+            // 2. 编解码器
+            const codecs = detector.checkCodecSupport();
+            renderCodecs(codecs);
+            setDot('codecs', true);
+
+            // 3. 设备列表（需要 http/https，localhost 也行）
+            const hasDevices = await detector.detectMediaDevices();
+            renderDevices(detector.capabilities.mediaDevices);
+            setDot('devices', hasDevices);
+
+            // 4. 权限
+            await detector.checkPermissions();
+            const perms = detector.capabilities.permissions;
+            setDot('preview', perms.camera === 'granted' || perms.microphone === 'granted');
+
+            detectorResult = detector.capabilities;
+
+            // 5. 汇总 & 总结
+            renderSummary(detectorResult);
+            renderVerdict(detectorResult);
+        }
+
+        // ============================================================
+        //  Section 渲染
+        // ============================================================
+
+        function renderWebRTC(caps) {
+            const rows = [
+                ['RTCPeerConnection', caps.webRTCSupported],
+                ['getUserMedia', caps.getUserMediaSupported],
+                ['屏幕共享 (getDisplayMedia)', caps.screenShareSupported],
+                ['MediaStream', typeof MediaStream !== 'undefined'],
+            ];
+            document.getElementById('rows-webrtc').innerHTML = rows.map(([k, v]) =>
+                `<div class="check-row"><span class="key">${k}</span><span class="val ${v ? 'pass' : 'fail'}">${v ? '✓ 支持' : '✗ 不支持'}</span></div>`
+            ).join('');
+        }
+
+        function renderCodecs(codecs) {
+            const allVideo = (codecs.video || []).filter(c => c.supported);
+            const allAudio = (codecs.audio || []).filter(c => c.supported);
+            document.getElementById('rows-codecs').innerHTML = `
+                <div class="check-row"><span class="key">视频</span><span class="val pass">${allVideo.map(c => c.name).join(', ') || '无'}</span></div>
+                <div class="check-row"><span class="key">音频</span><span class="val pass">${allAudio.map(c => c.name).join(', ') || '无'}</span></div>
+            `;
+        }
+
+        function renderDevices(devices) {
+            const cams = devices.cameras || [];
+            const mics = devices.microphones || [];
+            document.getElementById('rows-devices').innerHTML = `
+                <div class="check-row">
+                    <span class="key">摄像头</span>
+                    <span class="val ${cams.length ? 'pass' : 'warn'}">${cams.length ? cams.length + ' 个' : '未检测到'}</span>
+                </div>
+                ${cams.slice(0, 5).map(d => `<div class="check-row"><span class="key" style="padding-left:16px;">↳ ${d.label}</span><span class="device-tag">${d.deviceId.slice(0, 8)}...</span></div>`).join('')}
+                <div class="check-row">
+                    <span class="key">麦克风</span>
+                    <span class="val ${mics.length ? 'pass' : 'warn'}">${mics.length ? mics.length + ' 个' : '未检测到'}</span>
+                </div>
+                ${mics.slice(0, 5).map(d => `<div class="check-row"><span class="key" style="padding-left:16px;">↳ ${d.label}</span><span class="device-tag">${d.deviceId.slice(0, 8)}...</span></div>`).join('')}
+            `;
+        }
+
+        function renderSummary(caps) {
+            const ok = caps.webRTCSupported && caps.permissions.camera === 'granted' && caps.permissions.microphone === 'granted';
+            const warn = caps.webRTCSupported && (caps.permissions.camera === 'prompt' || caps.permissions.microphone === 'prompt');
+            document.getElementById('summary').innerHTML = [
+                { icon: '🌐', label: 'WebRTC', cls: caps.webRTCSupported ? 'ok' : 'fail', val: caps.webRTCSupported ? '支持' : '不支持' },
+                { icon: '📷', label: '摄像头', cls: caps.permissions.camera === 'granted' ? 'ok' : caps.permissions.camera === 'denied' ? 'fail' : 'warn', val: permLabel(caps.permissions.camera) },
+                { icon: '🎤', label: '麦克风', cls: caps.permissions.microphone === 'granted' ? 'ok' : caps.permissions.microphone === 'denied' ? 'fail' : 'warn', val: permLabel(caps.permissions.microphone) },
+            ].map(c =>
+                `<div class="summary-chip ${c.cls}"><div class="icon">${c.icon}</div><div class="label">${c.label}</div><div class="val">${c.val}</div></div>`
+            ).join('');
+        }
+
+        function renderVerdict(caps) {
+            const section = document.getElementById('sect-verdict');
+            section.style.display = 'block';
+            const el = document.getElementById('verdictText');
+            const issues = [];
+            if (!caps.webRTCSupported) issues.push('浏览器不支持 WebRTC，无法进行音视频通话');
+            if (!caps.getUserMediaSupported) issues.push('浏览器不支持打开摄像头/麦克风');
+            if (caps.permissions.camera === 'denied') issues.push('摄像头权限被拒绝，请在浏览器设置中允许');
+            if (caps.permissions.microphone === 'denied') issues.push('麦克风权限被拒绝，请在浏览器设置中允许');
+            if (caps.permissions.camera === 'prompt') issues.push('摄像头权限尚未授权，通话时会弹出请求');
+            if (caps.permissions.microphone === 'prompt') issues.push('麦克风权限尚未授权，通话时会弹出请求');
+
+            if (!issues.length) {
+                el.innerHTML = '<span style="color:var(--green);">✓ 所有检测项目通过，设备与环境就绪，可以正常进行音视频通话。</span>';
+                setDot('verdict', true);
+            } else {
+                el.innerHTML = issues.map(i => `<div style="color:var(--red);margin-bottom:4px;">✗ ${i}</div>`).join('');
+                setDot('verdict', false);
+            }
+        }
+
+        // ============================================================
+        //  实时预览 & 麦克风
+        // ============================================================
+
+        async function togglePreview() {
+            if (currentMode === 'preview') {
+                stopPreview();
+                return;
+            }
+            stopAudioTest();
+
+            try {
+                previewStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false
+                });
+                const v = document.getElementById('videoPreview');
+                v.srcObject = previewStream;
+                v.classList.remove('hidden');
+                currentMode = 'preview';
+                setBtnText('btnPreview', '关闭预览');
+                document.getElementById('btnAudio').disabled = true;
+                setDot('preview', true);
+            } catch (e) {
+                alert('无法打开摄像头: ' + e.message);
+            }
+        }
+
+        function stopPreview() {
+            if (previewStream) {
+                previewStream.getTracks().forEach(t => t.stop());
+                previewStream = null;
+            }
+            const v = document.getElementById('videoPreview');
+            v.srcObject = null;
+            v.classList.add('hidden');
+            if (currentMode === 'preview') currentMode = null;
+            setBtnText('btnPreview', '预览摄像头');
+            document.getElementById('btnAudio').disabled = false;
+        }
+
+        async function toggleAudioTest() {
+            if (currentMode === 'audio') {
+                stopAudioTest();
+                return;
+            }
+            stopPreview();
+
+            try {
+                audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const src = audioCtx.createMediaStreamSource(audioStream);
+                analyserNode = audioCtx.createAnalyser();
+                analyserNode.fftSize = 256;
+                src.connect(analyserNode);
+
+                document.getElementById('audioMeterWrap').classList.remove('hidden');
+                document.getElementById('audioCanvas').classList.remove('hidden');
+
+                currentMode = 'audio';
+                setBtnText('btnAudio', '关闭麦克风测试');
+                document.getElementById('btnPreview').disabled = true;
+                setDot('preview', true);
+
+                drawAudio();
+            } catch (e) {
+                alert('无法打开麦克风: ' + e.message);
+            }
+        }
+
+        function stopAudioTest() {
+            if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+            if (audioStream) {
+                audioStream.getTracks().forEach(t => t.stop());
+                audioStream = null;
+            }
+            if (audioCtx && audioCtx.state !== 'closed') {
+                audioCtx.close().catch(() => { });
+                audioCtx = null;
+            }
+            analyserNode = null;
+            document.getElementById('audioMeterWrap').classList.add('hidden');
+            document.getElementById('audioCanvas').classList.add('hidden');
+            document.getElementById('audioBarFill').style.width = '0%';
+            document.getElementById('audioLabel').textContent = '- dB';
+            if (currentMode === 'audio') currentMode = null;
+            setBtnText('btnAudio', '麦克风测试');
+            document.getElementById('btnPreview').disabled = false;
+        }
+
+        function drawAudio() {
+            if (!analyserNode) return;
+            const data = new Uint8Array(analyserNode.frequencyBinCount);
+            analyserNode.getByteFrequencyData(data);
+
+            // 音量条
+            const avg = data.reduce((a, b) => a + b, 0) / data.length;
+            const pct = Math.min(100, (avg / 128) * 100);
+            document.getElementById('audioBarFill').style.width = pct + '%';
+            const db = Math.round(20 * Math.log10(Math.max(1, avg) / 255));
+            document.getElementById('audioLabel').textContent = db + ' dB';
+
+            // 波形图
+            const canvas = document.getElementById('audioCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'var(--card-bg)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const timeData = new Uint8Array(analyserNode.fftSize);
+            analyserNode.getByteTimeDomainData(timeData);
+            ctx.beginPath();
+            ctx.strokeStyle = '#4f8cff';
+            ctx.lineWidth = 1.5;
+            const sliceWidth = canvas.width / analyserNode.fftSize;
+            for (let i = 0; i < analyserNode.fftSize; i++) {
+                const x = i * sliceWidth;
+                const v = timeData[i] / 128;
+                const y = v * canvas.height / 2;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            animFrame = requestAnimationFrame(drawAudio);
+        }
+
+        // ============================================================
+        //  ICE 连通性检测
+        // ============================================================
+
+        async function testICE() {
+            const btn = document.getElementById('btnIce');
+            const logEl = document.getElementById('iceLog');
+            btn.disabled = true;
+            btn.textContent = '检测中...';
+            logEl.style.display = 'block';
+            logEl.innerHTML = '';
+            setDot('ice', null);
+
+            const iceConfig = {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun.cloudflare.com:3478' },
+                ],
+                iceCandidatePoolSize: 1,
+            };
+
+            const pc = new RTCPeerConnection(iceConfig);
+            const results = { srflx: false, relay: false, host: false, timedOut: false };
+
+            const done = new Promise(resolve => {
+                let settled = false;
+                const settle = () => { if (!settled) { settled = true; resolve(results); } };
+
+                pc.onicecandidate = (e) => {
+                    if (!e.candidate) { /* gathering done */ return; }
+                    const c = e.candidate;
+                    const line = `${c.type.padEnd(8)} ${(c.address || '').padEnd(22)} ${c.port}`;
+                    if (c.type === 'srflx' || c.type === 'relay') {
+                        results[c.type] = true;
+                        logEl.innerHTML += `<div class="found">✓ ${line}</div>`;
+                    } else {
+                        logEl.innerHTML += `<div>  ${line}</div>`;
+                    }
+                };
+
+                pc.onicegatheringstatechange = () => {
+                    if (pc.iceGatheringState === 'complete') settle();
+                };
+
+                setTimeout(() => {
+                    if (!settled) { results.timedOut = true; settle(); }
+                }, 8000);
+            });
+
+            try {
+                // Create data channel to trigger ICE
+                pc.createDataChannel('ice-check');
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+            } catch (e) {
+                logEl.innerHTML += `<div class="fail">✗ 创建连接失败: ${e.message}</div>`;
+                btn.disabled = false;
+                btn.textContent = '开始检测';
+                return;
+            }
+
+            await done;
+            pc.close();
+
+            const srflxOk = results.srflx;
+            const relayOk = results.relay;
+            const ok = srflxOk;
+
+            logEl.innerHTML += `<div style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px;">
+                NAT 穿透 (STUN) ${srflxOk ? '<span class="found">✓ 可达</span>' : '<span class="fail">✗ 不可达</span>'}
+                ${relayOk ? ' &nbsp; TURN <span class="found">✓</span>' : ''}
+            </div>`;
+
+            setDot('ice', ok);
+            btn.disabled = false;
+            btn.textContent = '重新检测';
+        }
+
+        // ============================================================
+        //  辅助
+        // ============================================================
+
+        function setDot(id, ok) {
+            const dot = document.getElementById('dot-' + id);
+            if (!dot) return;
+            dot.className = 'status-dot ' + (ok === true ? 'ok' : ok === false ? 'fail' : ok === null ? 'idle' : 'idle');
+        }
+
+        function setBtnText(id, text) {
+            const btn = document.getElementById(id);
+            if (btn) btn.textContent = text;
+        }
+
+        function permLabel(state) {
+            const map = { granted: '已授权', denied: '已拒绝', prompt: '待授权', 'no-device': '未检测到设备', error: '异常' };
+            return map[state] || state;
+        }
+
+        function showFatal(msg) {
+            document.querySelector('.container').innerHTML =
+                `<div style="text-align:center;padding:40px;color:var(--red);">${msg}</div>`;
+        }
+    </script>
+</body>
+
+</html>
