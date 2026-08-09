@@ -413,7 +413,6 @@ export class ChatRoom {
   async closeOrErrorHandler(webSocket) {
     let session = this.sessions.get(webSocket) || {};
     let userId = session.userId;
-    session.quit = true;
     this.sessions.delete(webSocket);
     if (userId) {
       for (const [callId, state] of this.callStates) {
