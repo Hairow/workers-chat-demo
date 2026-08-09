@@ -12,7 +12,7 @@ class WebRTCManager {
         this.calleeUserId = null;     // 主叫方记录被叫方 userId
         this.pendingCallFrom = null;  // 被叫方记录主叫方 userId
         this.callbacks = callbacks || {};  // 回调：onCallStateChange(active), onStatus(msg)
-        this.iceBatch = [];           // 批量收集 ICE candidates
+        this.iceBatch = new Map();    // Map(候选key -> candidate)，自动去重
         this.currentCallId = null;    // 当前通话 ID，用于 ICE 信令
 
         // ICE 服务器配置（生产环境建议用自己的 TURN）
@@ -294,17 +294,17 @@ class WebRTCManager {
     _flushIce() {
         if (!this.pc || !this.pc.remoteDescription) return;
         const targetUserId = this.isCalling ? this.calleeUserId : this.pendingCallFrom;
-        if (targetUserId && this.iceBatch.length > 0) {
+        if (targetUserId && this.iceBatch.size > 0) {
             this.ws.send(JSON.stringify({
                 type: 'webrtc-ice',
                 body: {
                     targetUserId: targetUserId,
-                    candidates: this.iceBatch.slice(),
+                    candidates: [...this.iceBatch.values()],
                     callId: this.currentCallId,
                 }
             }));
         }
-        this.iceBatch = [];
+        this.iceBatch.clear();
     }
 
     // === 处理 ICE Candidate ===
@@ -334,11 +334,12 @@ class WebRTCManager {
             });
         };
 
-        // 收集 ICE Candidate（不逐个发送，等收集完毕批量发送，避免高频触发限流）
-        this.iceBatch = [];
+        // 收集 ICE Candidate（Map key 自动去重，不逐个发送，等收集完毕批量发送）
+        this.iceBatch = new Map();
         this.pc.onicecandidate = (event) => {
             if (event.candidate) {
-                this.iceBatch.push(event.candidate);
+                const key = `${event.candidate.sdpMid || ''}:${event.candidate.sdpMLineIndex}:${event.candidate.candidate}`;
+                this.iceBatch.set(key, event.candidate);
             }
         };
 
