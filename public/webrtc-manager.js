@@ -209,7 +209,7 @@ class WebRTCManager {
 
             // 4. 创建 Offer
             const offer = await this.pc.createOffer();
-            await this.pc.setLocalDescription(offer);
+            await this.pc.setLocalDescription(offer);//会触发ice收集
 
             // 5. 通过 DO 发送 Offer 给被叫方
             this.ws.send(JSON.stringify({
@@ -266,10 +266,10 @@ class WebRTCManager {
             return;
         }
 
-        await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
+        await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));//会触发ice收集
 
         const answer = await this.pc.createAnswer();
-        await this.pc.setLocalDescription(answer);
+        await this.pc.setLocalDescription(answer);//会触发ice收集
 
         // 发送 Answer 回去
         this.ws.send(JSON.stringify({
