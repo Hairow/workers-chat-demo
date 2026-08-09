@@ -11,7 +11,7 @@
     <div id="app" v-cloak>
 
         <!-- ── Name Chooser ─────────────────────────── -->
-        <form v-if="step === 'name'" class="modal-overlay" @submit.prevent="confirmName">
+        <form v-if="step === 'name'" class="modal-overlay" action="/fake-form-action" @submit.prevent="confirmName">
             <input class="modal-input" v-model="username" placeholder="your name" maxlength="32" ref="nameInput"
                 autofocus @input="authError = ''">
             <p v-if="authError" class="auth-error">{{ authError }}</p>
