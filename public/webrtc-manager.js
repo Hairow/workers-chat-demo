@@ -286,8 +286,7 @@ class WebRTCManager {
     async handleAnswer(data) {
         if (!this.pc) return;
         await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
-        // answer 到位后才可发送 ICE candidates
-        this._flushIce();
+        // setRemoteDescription 会重启 ICE 收集，收集完成后 onicegatheringstatechange 统一 flush
     }
 
     // === 发送缓存的 ICE candidates（需 setRemoteDescription 完成后） ===
