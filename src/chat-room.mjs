@@ -338,7 +338,7 @@ export class ChatRoom {
           break;
         case 'hangup':
           // 挂断通知
-          await this.broadcastHangup(data, webSocket);
+          await this.relayHangup(data, webSocket);
           break;
         default:
           console.warn('未知消息类型:', data.type);
@@ -438,7 +438,7 @@ export class ChatRoom {
 
   // broadcast() broadcasts a message to all clients (optionally excluding sender).
   // broadcast() 向所有客户端广播消息（可排除发送者）。
-  broadcast(message, excludeWs = null) {
+  broadcast(message) {
     // Apply JSON if we weren't given a string to start with.
     // 如果传进来不是字符串，做 JSON 序列化。
     if (typeof message !== "string") {
@@ -449,7 +449,6 @@ export class ChatRoom {
     // 遍历所有 session 发送消息。
     let quitters = [];
     this.sessions.forEach((session, webSocket) => {
-      if (webSocket === excludeWs) return;
       if (session.name) {
         if (session.blockedMessages) {
           session.blockedMessages.push(message);
@@ -700,21 +699,31 @@ export class ChatRoom {
   }
 
   // === 广播挂断 ===
-  async broadcastHangup(data, senderWs) {
+  async relayHangup(data, senderWs) {
     const callId = data.body.callId;
     if (callId) this.callStates.delete(callId);
 
     const senderSession = this.sessions.get(senderWs);
     if (!senderSession) return;
 
-    // 广播给所有人（除发送者外），复用 broadcast 即可
-    this.broadcast({
+    const targetUserId = data.body.targetUserId;
+    const payload = JSON.stringify({
       type: 'peer-hangup',
       body: {
         ...data.body,
         fromUserId: senderSession.userId,
       }
-    }, senderWs);
+    });
+
+    // 点对点消息：只发给目标用户
+    for (const [ws, s] of this.sessions) {
+      if (s.userId === targetUserId) {
+        try {
+          ws.send(payload);
+        } catch (_) { /* 对方已断开，忽略 */ }
+        break;
+      }
+    }
   }
 
 }
