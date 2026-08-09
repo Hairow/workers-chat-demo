@@ -168,15 +168,6 @@ export class ChatRoom {
 
     session.userId = crypto.randomUUID();
 
-    // 清理同名旧 session（例如用户刷新页面，旧 WS 还未 close）
-    // 广播 quit 确保其他客户端移除旧条目，避免 roster 中出现同名不同 userId 的重复项
-    for (let [ws, s] of this.sessions) {
-      if (s.name && s.name === session.name) {
-        this.sessions.delete(ws);
-        this.broadcast({ quit: s.name, ip: s.ip });
-        try { ws.close(1001, "Reconnected"); } catch (_) { }
-      }
-    }
 
     // attach limiterId, name, ip, userId to the webSocket so they survive hibernation
     // 将 limiterId、ip、name、userId 附加到 webSocket，使其在休眠时也能保留
