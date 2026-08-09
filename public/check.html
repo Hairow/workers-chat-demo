@@ -432,7 +432,7 @@
         function populateDeviceSelect(id, devices, label) {
             const sel = document.getElementById(id);
             sel.innerHTML = '';
-            if (devices.length <= 1) { sel.classList.add('hidden'); return; }
+            if (devices.length === 0) { sel.classList.add('hidden'); return; }
             devices.forEach(d => {
                 const opt = document.createElement('option');
                 opt.value = d.deviceId;
