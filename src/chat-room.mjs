@@ -168,6 +168,15 @@ export class ChatRoom {
 
     session.userId = crypto.randomUUID();
 
+    // 清理同名旧 session（例如用户刷新页面，旧 WS 还未 close）
+    for (let [ws, s] of this.sessions) {
+      if (s.name && s.name === session.name) {
+        s.quit = true;
+        this.sessions.delete(ws);
+        try { ws.close(1001, "Reconnected"); } catch (_) { }
+      }
+    }
+
     // attach limiterId, name, ip, userId to the webSocket so they survive hibernation
     // 将 limiterId、ip、name、userId 附加到 webSocket，使其在休眠时也能保留
     webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip, name: session.name, userId: session.userId });
