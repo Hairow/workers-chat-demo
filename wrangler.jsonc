@@ -2,10 +2,9 @@
   "name": "edge-chat-demo",
   "compatibility_date": "2024-01-01",
   "main": "src/index.mjs",
-  // 静态资源目录（public 下的文件可通过 env.ASSETS.fetch() 访问）
+  // 静态资源目录（平台层优先匹配，无需 Worker 代码处理）
   "assets": {
-    "directory": "public",
-    "binding": "ASSETS"
+    "directory": "public"
   },
   // For production, override this with: wrangler secret put JWT_SECRET
   "vars": {
@@ -29,15 +28,6 @@
       }
     ]
   },
-  "rules": [
-    {
-      "type": "Data",
-      "globs": [
-        "**/*.html"
-      ],
-      "fallthrough": false
-    }
-  ],
   // Indicate that you want the ChatRoom and RateLimiter classes to be callable as Durable Objects.
   "migrations": [
     {

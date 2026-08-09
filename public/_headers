@@ -1,0 +1,10 @@
+# HTML — 不缓存，确保用户总是获取最新版本
+/*.html
+  Cache-Control: no-cache
+
+# JS / CSS — 长期缓存（文件名版本化时可用 immutable）
+/*.js
+  Cache-Control: public, max-age=3600
+
+/*.css
+  Cache-Control: public, max-age=3600
