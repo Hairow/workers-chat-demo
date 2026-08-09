@@ -415,7 +415,7 @@ export class ChatRoom {
       }
     }
     if (session.name) {
-      this.broadcast({ quit: session.name, ip: session.ip });
+      this.broadcast({ quit: session.name, ip: session.ip, userId: session.userId });
     }
   }
 
@@ -459,7 +459,7 @@ export class ChatRoom {
 
     quitters.forEach(quitter => {
       if (quitter.name) {
-        this.broadcast({ quit: quitter.name, ip: quitter.ip });
+        this.broadcast({ quit: quitter.name, ip: quitter.ip, userId: quitter.userId });
       }
     });
   }

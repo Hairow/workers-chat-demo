@@ -308,7 +308,7 @@
                             this.roster = this.roster.filter(u => u.name !== data.joined);
                             this.roster.push({ name: data.joined, ip: data.ip || '', userId: data.userId });
                         } else if (data.quit) {
-                            this.roster = this.roster.filter((u) => { return u.name !== data.quit; });
+                            this.roster = this.roster.filter(u => u.userId !== data.userId);
                         } else if (data.ready) {
                             if (!this.wroteWelcome) {
                                 this.wroteWelcome = true;
