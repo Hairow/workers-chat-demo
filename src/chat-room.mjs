@@ -171,7 +171,6 @@ export class ChatRoom {
     // 清理同名旧 session（例如用户刷新页面，旧 WS 还未 close）
     for (let [ws, s] of this.sessions) {
       if (s.name && s.name === session.name) {
-        s.quit = true;
         this.sessions.delete(ws);
         try { ws.close(1001, "Reconnected"); } catch (_) { }
       }
