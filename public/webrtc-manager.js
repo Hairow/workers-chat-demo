@@ -99,7 +99,7 @@ class WebRTCManager {
 
             case 'webrtc-answer':
                 // 收到 Answer（你是主叫方）
-                await this.handleAnswer(data);
+                this.handleAnswer(data);
                 break;
 
             case 'webrtc-ice':
@@ -283,9 +283,9 @@ class WebRTCManager {
     }
 
     // === 处理 Answer（主叫方收到被叫方的 Answer）===
-    async handleAnswer(data) {
+    handleAnswer(data) {
         if (!this.pc) return;
-        await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
+        this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
         // setRemoteDescription 会重启 ICE 收集，收集完成后 onicegatheringstatechange 统一 flush
     }
 
