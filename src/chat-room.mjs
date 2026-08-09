@@ -235,7 +235,7 @@ export class ChatRoom {
     'webrtc-offer': { required: ['targetUserId', 'sdp'], optional: ['callId'], maxLen: {} },
     'webrtc-answer': { required: ['targetUserId', 'sdp'], optional: ['callId'], maxLen: {} },
     'webrtc-ice': { required: ['targetUserId', 'candidates'], optional: ['callId'], maxLen: {} },
-    hangup: { required: ['targetUserId'], optional: [], maxLen: {} },
+    hangup: { required: ['targetUserId'], optional: ['callId'], maxLen: {} },
 
   }
 
@@ -418,7 +418,7 @@ export class ChatRoom {
     this.sessions.delete(webSocket);
     if (userId) {
       for (const [callId, state] of this.callStates) {
-        if (state.callerId === userId || state.calleeId === userId) {
+        if (state.caller === userId || state.callee === userId) {
           this.callStates.delete(callId);
         }
       }
@@ -436,9 +436,9 @@ export class ChatRoom {
     this.closeOrErrorHandler(webSocket)
   }
 
-  // broadcast() broadcasts a message to all clients.
-  // broadcast() 向所有客户端广播消息。
-  broadcast(message) {
+  // broadcast() broadcasts a message to all clients (optionally excluding sender).
+  // broadcast() 向所有客户端广播消息（可排除发送者）。
+  broadcast(message, excludeWs = null) {
     // Apply JSON if we weren't given a string to start with.
     // 如果传进来不是字符串，做 JSON 序列化。
     if (typeof message !== "string") {
@@ -449,31 +449,20 @@ export class ChatRoom {
     // 遍历所有 session 发送消息。
     let quitters = [];
     this.sessions.forEach((session, webSocket) => {
+      if (webSocket === excludeWs) return;
       if (session.name) {
         if (session.blockedMessages) {
-          // Session is named (JWT) but blockedMessages haven't been flushed yet.
-          // Queue here so that real-time messages don't jump ahead of history,
-          // which would cause the client's timestamp-based dedup to discard history.
-          // Session 已命名但 blockedMessages 尚未刷新，排队以保证实时消息
-          // 不会插在历史消息前面，避免客户端时间戳去重丢弃历史。
           session.blockedMessages.push(message);
         } else {
           try {
             webSocket.send(message);
           } catch (err) {
-            // Whoops, this connection is dead. Remove it from the map and arrange to notify
-            // everyone below.
-            // 糟糕，这个连接已断开。从 map 中移除并安排通知所有人。
             session.quit = true;
             quitters.push(session);
             this.sessions.delete(webSocket);
           }
         }
       } else {
-        // This session hasn't sent the initial user info message yet, so we're not sending them
-        // messages yet (no secret lurking!). Queue the message to be sent later.
-        // 这个 session 还没有发送初始用户信息消息，所以暂时不发消息给它（不偷看！）。
-        // 将消息排队等待稍后发送。
         session.blockedMessages.push(message);
       }
     });
@@ -714,18 +703,18 @@ export class ChatRoom {
   async broadcastHangup(data, senderWs) {
     const callId = data.body.callId;
     if (callId) this.callStates.delete(callId);
-    // data 格式: { type: 'hangup', body:{targetUserId: 'xxx' }  }
-    for (const [webSocket, s] of this.sessions) {
-      if (webSocket !== senderWs && webSocket.readyState === WebSocket.OPEN) {
-        webSocket.send(JSON.stringify({
-          type: 'peer-hangup',
-          body: {
-            ...data.body,
-            fromUserId: this.sessions.get(senderWs).userId
-          }
-        }));
+
+    const senderSession = this.sessions.get(senderWs);
+    if (!senderSession) return;
+
+    // 广播给所有人（除发送者外），复用 broadcast 即可
+    this.broadcast({
+      type: 'peer-hangup',
+      body: {
+        ...data.body,
+        fromUserId: senderSession.userId,
       }
-    }
+    }, senderWs);
   }
 
 }

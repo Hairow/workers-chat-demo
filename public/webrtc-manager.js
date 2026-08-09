@@ -367,7 +367,7 @@ class WebRTCManager {
             if (targetUserId) {
                 this.ws.send(JSON.stringify({
                     type: 'hangup',
-                    body: { targetUserId }
+                    body: { targetUserId, callId: this.currentCallId }
                 }));
             }
         }
