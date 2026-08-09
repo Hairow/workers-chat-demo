@@ -698,7 +698,7 @@ export class ChatRoom {
     }
   }
 
-  // === 广播挂断 ===
+  // === 挂断 ===
   async relayHangup(data, senderWs) {
     const callId = data.body.callId;
     if (callId) this.callStates.delete(callId);
