@@ -181,6 +181,24 @@
             text-align: right;
         }
 
+        .device-select {
+            width: 100%;
+            max-width: 400px;
+            margin: 8px auto;
+            display: block;
+            padding: 7px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--card-bg);
+            color: var(--text);
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+        }
+        .device-select:focus {
+            border-color: var(--accent);
+        }
+
         .btn-row {
             display: flex;
             gap: 8px;
@@ -271,7 +289,9 @@
         <!-- 摄像头预览 + 麦克风音量 -->
         <div class="section" id="sect-preview">
             <h3>实时测试 <span class="status-dot idle" id="dot-preview"></span></h3>
+            <select class="device-select hidden" id="camSelect" onchange="onCamSelectChange()"></select>
             <video id="videoPreview" class="hidden" autoplay muted playsinline></video>
+            <select class="device-select hidden" id="micSelect"></select>
             <div class="audio-bar-container hidden" id="audioMeterWrap">
                 <span style="font-size:12px;">🎤</span>
                 <div class="audio-bar"><div class="audio-bar-fill" id="audioBarFill"></div></div>
@@ -404,6 +424,22 @@
                 </div>
                 ${mics.slice(0, 5).map(d => `<div class="check-row"><span class="key" style="padding-left:16px;">↳ ${d.label}</span><span class="device-tag">${d.deviceId.slice(0, 8)}...</span></div>`).join('')}
             `;
+            // 填充设备选择器（多设备时才显示）
+            populateDeviceSelect('camSelect', cams, '摄像头');
+            populateDeviceSelect('micSelect', mics, '麦克风');
+        }
+
+        function populateDeviceSelect(id, devices, label) {
+            const sel = document.getElementById(id);
+            sel.innerHTML = '';
+            if (devices.length <= 1) { sel.classList.add('hidden'); return; }
+            devices.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.deviceId;
+                opt.textContent = d.label;
+                sel.appendChild(opt);
+            });
+            sel.classList.remove('hidden');
         }
 
         function renderSummary(caps) {
@@ -451,10 +487,13 @@
             stopAudioTest();
 
             try {
-                previewStream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 640 }, height: { ideal: 480 } },
+                const camId = getSelectedDevice('camSelect');
+                const constraints = {
+                    video: camId ? { deviceId: { exact: camId }, width: { ideal: 640 }, height: { ideal: 480 } }
+                                 : { width: { ideal: 640 }, height: { ideal: 480 } },
                     audio: false
-                });
+                };
+                previewStream = await navigator.mediaDevices.getUserMedia(constraints);
                 const v = document.getElementById('videoPreview');
                 v.srcObject = previewStream;
                 v.classList.remove('hidden');
@@ -488,7 +527,9 @@
             stopPreview();
 
             try {
-                audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                const micId = getSelectedDevice('micSelect');
+                const constraints = { audio: micId ? { deviceId: { exact: micId } } : true, video: false };
+                audioStream = await navigator.mediaDevices.getUserMedia(constraints);
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const src = audioCtx.createMediaStreamSource(audioStream);
                 analyserNode = audioCtx.createAnalyser();
@@ -662,6 +703,19 @@
         function permLabel(state) {
             const map = { granted: '已授权', denied: '已拒绝', prompt: '待授权', 'no-device': '未检测到设备', error: '异常' };
             return map[state] || state;
+        }
+
+        function getSelectedDevice(selectId) {
+            const sel = document.getElementById(selectId);
+            return sel && !sel.classList.contains('hidden') ? sel.value : null;
+        }
+
+        // 预览中切换摄像头，立即重启预览
+        async function onCamSelectChange() {
+            if (currentMode === 'preview') {
+                stopPreview();
+                await togglePreview();
+            }
         }
 
         function showFatal(msg) {
