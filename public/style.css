@@ -99,7 +99,7 @@ p {
     right: 10px;
     width: fit-content;
     min-width: 120px;
-    max-width: 360px;
+    max-width: 560px;
     max-height: 60vh;
     padding: 12px;
     background: var(--surface);
@@ -208,6 +208,31 @@ p {
 
 .modal-input::placeholder {
     color: var(--text-secondary);
+}
+
+.name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.login-btn {
+    height: 52px;
+    padding: 0 20px;
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--transition);
+}
+
+.login-btn:hover {
+    background: var(--accent-hover);
 }
 
 .auth-error {

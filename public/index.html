@@ -12,8 +12,11 @@
 
         <!-- ── Name Chooser ─────────────────────────── -->
         <form v-if="step === 'name'" class="modal-overlay" action="/fake-form-action" @submit.prevent="confirmName">
-            <input class="modal-input" v-model="username" placeholder="your name" maxlength="32" ref="nameInput"
-                autofocus @input="authError = ''">
+            <div class="name-row">
+                <input class="modal-input" v-model="username" placeholder="your name" maxlength="32" ref="nameInput"
+                    autofocus @input="authError = ''">
+                <button type="submit" class="login-btn">登录</button>
+            </div>
             <p v-if="authError" class="auth-error">{{ authError }}</p>
             <p v-else
                 style="margin-top:20px;max-width:360px;padding:0 16px;text-align:center;font-size:13px;color:var(--text-secondary);line-height:1.6;">
