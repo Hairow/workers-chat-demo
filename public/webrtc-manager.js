@@ -15,11 +15,13 @@ class WebRTCManager {
         this.iceBatch = new Set();    // Set(候选JSON字符串)，自动去重
         this.currentCallId = null;    // 当前通话 ID，用于 ICE 信令
 
-        // ICE 服务器配置（生产环境建议用自己的 TURN）
+        // ICE 服务器配置（仅 STUN，无需凭据）
         this.iceServers = {
             iceServers: [
                 { urls: 'stun:stun.cloudflare.com:3478' },
-                { urls: 'stun:stun.l.google.com:19302' }
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun.aliyun.com:3478' },       // 阿里云
+                { urls: 'stun:stun.tencentcloud.com:3478' }  // 腾讯云
             ]
         };
     }
