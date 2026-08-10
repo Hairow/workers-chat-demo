@@ -4,7 +4,7 @@
 
 # JS / CSS — 长期缓存（文件名版本化时可用 immutable）
 /*.js
-  Cache-Control: public, max-age=60
+  Cache-Control: no-cache
 
 /*.css
-  Cache-Control: public, max-age=60
+  Cache-Control: no-cache
