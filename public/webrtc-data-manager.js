@@ -390,8 +390,14 @@ class WebRTCDataManager {
                     transfer.status = 'done';
                     transfer.sentBytes = transfer.fileSize;
                     self._notify(transfer);
+                    // 等待缓冲区排空，但不立即关闭——等接收方确认后再清理
                     self._waitForDrain(function () {
-                        self._cleanup();
+                        console.log('[FileTransfer] 发送完成，等待接收方确认');
+                        // 超时兜底：30 秒后强制清理，防止确认消息丢失导致连接永不释放
+                        transfer._cleanupTimer = setTimeout(function () {
+                            console.warn('[FileTransfer] 等待确认超时，强制清理');
+                            self._cleanup();
+                        }, 30000);
                     });
                     return;
                 }
@@ -416,6 +422,8 @@ class WebRTCDataManager {
         if (transfer.opfsWriter && transfer.opfsFile) {
             // OPFS 模式：关闭 writer，从 OPFS 读取文件并下载
             transfer.opfsWriter.close().then(function () {
+                // OPFS 写入完成，立即通知发送方可以关闭连接
+                self._sendTransferComplete(transfer);
                 return transfer.opfsFile.getFile();
             }).then(function (file) {
                 transfer.status = 'done';
@@ -441,7 +449,24 @@ class WebRTCDataManager {
             transfer.blob = blob;
             this._notify(transfer);
             this._triggerDownload(blob, transfer.fileName);
+            // 通知发送方已完成，可以关闭连接
+            this._sendTransferComplete(transfer);
             this._cleanup();
+        }
+    }
+
+    // 通知发送方传输完成
+    _sendTransferComplete(transfer) {
+        try {
+            this.ws.send(JSON.stringify({
+                type: 'file-transfer-complete',
+                body: {
+                    targetUserId: transfer.fromUserId,
+                    fileId: transfer.fileId
+                }
+            }));
+        } catch (e) {
+            console.warn('[FileTransfer] 发送完成确认失败:', e);
         }
     }
 
@@ -524,6 +549,8 @@ class WebRTCDataManager {
         if (transfer) {
             transfer.status = 'done';
             this._notify(transfer);
+            console.log('[FileTransfer] 接收方已确认完成，清理连接');
+            this._cleanup();
         }
     }
 
