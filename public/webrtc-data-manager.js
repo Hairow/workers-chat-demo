@@ -214,36 +214,47 @@ class WebRTCDataManager {
         var transfer = this._findTransfer(fileId);
         if (!transfer) return;
 
-        this.pendingFileId = fileId;
-        var PeerConn = window.RTCPeerConnection || window.webkitRTCPeerConnection;
-        this.pc = new PeerConn(this.iceServers);
+        try {
+            this.pendingFileId = fileId;
+            var PeerConn = window.RTCPeerConnection || window.webkitRTCPeerConnection;
+            this.pc = new PeerConn(this.iceServers);
 
-        // 监听 DataChannel
-        this.pc.ondatachannel = (event) => {
-            this.dc = event.channel;
-            this.dc.binaryType = 'arraybuffer';
-            this._setupDataChannel(transfer);
-        };
-        this._setupPeerConnection(transfer);
+            // 监听 DataChannel
+            var self = this;
+            this.pc.ondatachannel = function (event) {
+                self.dc = event.channel;
+                self.dc.binaryType = 'arraybuffer';
+                self._setupDataChannel(transfer);
+            };
+            this._setupPeerConnection(transfer);
 
-        await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
-        var answer = await this.pc.createAnswer();
-        await this.pc.setLocalDescription(answer);
+            await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
+            var answer = await this.pc.createAnswer();
+            await this.pc.setLocalDescription(answer);
 
-        this.ws.send(JSON.stringify({
-            type: 'file-answer',
-            body: {
-                targetUserId: data.body.fromUserId,
-                fileId: fileId,
-                sdp: this.pc.localDescription
-            }
-        }));
+            this.ws.send(JSON.stringify({
+                type: 'file-answer',
+                body: {
+                    targetUserId: data.body.fromUserId,
+                    fileId: fileId,
+                    sdp: this.pc.localDescription
+                }
+            }));
+        } catch (e) {
+            console.error('[FileTransfer] 接收方建立连接失败:', e);
+            transfer.status = 'error';
+            transfer.error = e.message;
+            this._notify(transfer);
+        }
     }
 
     // 收到 Answer
     _handleAnswer(data) {
         if (!this.pc) return;
-        this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
+        var self = this;
+        this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp)).catch(function (e) {
+            console.error('[FileTransfer] 设置 Answer 失败:', e);
+        });
     }
 
     // ========== DataChannel 数据传输 ==========
@@ -257,7 +268,8 @@ class WebRTCDataManager {
                 transfer.status = 'transferring';
                 transfer.startTime = Date.now();
                 self._notify(transfer);
-                self._startSending(transfer);
+                // 稍延迟开始发送，确保接收方 DataChannel 也已完成建立
+                setTimeout(function () { self._startSending(transfer); }, 200);
             } else {
                 transfer.status = 'transferring';
                 transfer.startTime = Date.now();
@@ -285,10 +297,14 @@ class WebRTCDataManager {
         };
 
         this.dc.onerror = function (e) {
-            console.error('[FileTransfer] DataChannel 错误:', e);
-            transfer.status = 'error';
-            transfer.error = '数据传输错误';
-            self._notify(transfer);
+            var connState = self.pc ? self.pc.connectionState : 'null';
+            console.error('[FileTransfer] DataChannel 错误 (连接状态: ' + connState + '):', e.error || e.type);
+            // 连接级别的错误由 onconnectionstatechange 处理，这里只处理传输错误
+            if (connState === 'connected' || connState === 'connecting') {
+                transfer.status = 'error';
+                transfer.error = '数据传输错误';
+                self._notify(transfer);
+            }
         };
 
         this.dc.onclose = function () {
@@ -318,19 +334,34 @@ class WebRTCDataManager {
             }
 
             if (chunkIndex >= transfer.totalChunks) {
-                // 全部发完
-                self.dc.send('__TRANSFER_DONE__');
+                // 全部发完，发送完成信号
+                try { self.dc.send('__TRANSFER_DONE__'); } catch (e) {
+                    transfer.status = 'error';
+                    transfer.error = '发送完成信号失败';
+                    self._notify(transfer);
+                    return;
+                }
                 transfer.status = 'done';
                 transfer.sentBytes = transfer.fileSize;
                 self._notify(transfer);
-                self._cleanup();
+                // 等待缓冲区排空后再关闭，确保接收方收到所有数据
+                self._waitForDrain(function () {
+                    self._cleanup();
+                });
                 return;
             }
 
             var slice = file.slice(offset, offset + self.CHUNK_SIZE);
             var reader = new FileReader();
             reader.onload = function () {
-                self.dc.send(reader.result);
+                try {
+                    self.dc.send(reader.result);
+                } catch (e) {
+                    transfer.status = 'error';
+                    transfer.error = '发送失败: ' + (e.message || e.name);
+                    self._notify(transfer);
+                    return;
+                }
                 offset += reader.result.byteLength;
                 transfer.sentBytes = offset;
                 transfer.sentChunks = chunkIndex + 1;
@@ -460,10 +491,38 @@ class WebRTCDataManager {
     }
 
     _cleanup() {
-        if (this.dc) { this.dc.close(); this.dc = null; }
-        if (this.pc) { this.pc.close(); this.pc = null; }
+        try { if (this.dc) { this.dc.close(); } } catch (e) { /* 忽略关闭错误 */ }
+        try { if (this.pc) { this.pc.close(); } } catch (e) { /* 忽略关闭错误 */ }
+        this.dc = null;
+        this.pc = null;
         this.iceBatch.clear();
         this.pendingFileId = null;
+    }
+
+    // 等待 DataChannel 缓冲区排空后再关闭
+    _waitForDrain(callback) {
+        var self = this;
+        var maxWait = 5000; // 最多等 5 秒
+        var startTime = Date.now();
+
+        function check() {
+            if (!self.dc || self.dc.readyState !== 'open') {
+                callback();
+                return;
+            }
+            if (self.dc.bufferedAmount === 0) {
+                // 再等 100ms 确保数据已送达对端
+                setTimeout(callback, 100);
+                return;
+            }
+            if (Date.now() - startTime > maxWait) {
+                console.warn('[FileTransfer] 缓冲区排空超时，强制关闭');
+                callback();
+                return;
+            }
+            setTimeout(check, 50);
+        }
+        check();
     }
 
     // === 获取 ICE 服务器配置 ===
