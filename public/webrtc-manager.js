@@ -425,4 +425,9 @@ class WebRTCManager {
             alert(msg);
         }
     }
+
+    // === 获取 ICE 服务器配置 ===
+    getIceServers() {
+        return this.iceServers;
+    }
 }
