@@ -614,10 +614,11 @@
                     if (this.fileDataManager) this.fileDataManager.rejectFile(fileId);
                 },
                 transferProgress: function (t) {
+                    if (!t.fileSize) return 0;
                     if (t.role === 'sender') {
-                        return t.totalChunks ? Math.round(t.sentChunks / t.totalChunks * 100) : 0;
+                        return Math.round(t.sentBytes / t.fileSize * 100);
                     } else {
-                        return t.totalChunks ? Math.round(t.receivedChunks / t.totalChunks * 100) : 0;
+                        return Math.round(t.receivedBytes / t.fileSize * 100);
                     }
                 },
                 formatSize: function (bytes) {
