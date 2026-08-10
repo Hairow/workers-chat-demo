@@ -432,7 +432,8 @@ class WebRTCDataManager {
                 self._triggerDownload(file, transfer.fileName);
                 // 清理 OPFS 临时文件
                 self._cleanupOpfs(transfer);
-                self._cleanup();
+                // 延迟关闭，给发送方时间处理 file-transfer-complete 消息
+                setTimeout(function () { self._cleanup(); }, 3000);
             }).catch(function (e) {
                 console.error('[FileTransfer] OPFS 读取失败:', e);
                 transfer.status = 'error';
@@ -451,7 +452,9 @@ class WebRTCDataManager {
             this._triggerDownload(blob, transfer.fileName);
             // 通知发送方已完成，可以关闭连接
             this._sendTransferComplete(transfer);
-            this._cleanup();
+            // 延迟关闭，给发送方时间处理 file-transfer-complete 消息
+            var self = this;
+            setTimeout(function () { self._cleanup(); }, 3000);
         }
     }
 
