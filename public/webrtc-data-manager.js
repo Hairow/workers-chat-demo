@@ -301,6 +301,7 @@ class WebRTCDataManager {
             // 字符串消息为控制指令
             if (typeof data === 'string') {
                 if (data === '__TRANSFER_DONE__') {
+                    transfer._finishing = true;  // 立即标记，防止后续错误覆盖状态
                     self._finishReceive(transfer);
                 }
                 return;
@@ -323,6 +324,8 @@ class WebRTCDataManager {
         };
 
         this.dc.onerror = function (e) {
+            // 传输已完成或正在完成，关闭连接的副作用，静默忽略
+            if (transfer._finishing || transfer.status === 'done' || transfer.status === 'error') return;
             var connState = self.pc ? self.pc.connectionState : 'null';
             console.error('[FileTransfer] DataChannel 错误 (连接状态: ' + connState + '):', e.error || e.type);
             // 连接级别的错误由 onconnectionstatechange 处理，这里只处理传输错误
@@ -508,7 +511,7 @@ class WebRTCDataManager {
             console.log('[FileTransfer] Connection:', self.pc.connectionState);
             // disconnected 是临时状态（ICE 仍在协商），只有 failed 才是真正的连接失败
             if (self.pc.connectionState === 'failed') {
-                if (transfer.status !== 'done') {
+                if (!transfer._finishing && transfer.status !== 'done') {
                     transfer.status = 'error';
                     transfer.error = '连接失败';
                     self._notify(transfer);
