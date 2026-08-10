@@ -312,6 +312,7 @@
                         } catch (e) {
                             // 非 JSON 消息（如连接错误文本），直接显示
                             this.addSysMsg('* ' + event.data);
+                            console.error('* ' + event.data)
                             return;
                         }
                         if (data.error) {
