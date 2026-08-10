@@ -625,7 +625,16 @@
                 iceCandidatePoolSize: 1,
             };
 
-            const pc = new RTCPeerConnection(iceConfig);
+            const PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection;
+            if (!PeerConnection) {
+                logEl.innerHTML += '<div class="not-found">✗ 当前环境不支持 RTCPeerConnection（需要 HTTPS 或 localhost）</div>';
+                setDot('ice', false);
+                btn.disabled = false;
+                btn.textContent = '检测 ICE';
+                return;
+            }
+
+            const pc = new PeerConnection(iceConfig);
             const results = { srflx: false, relay: false, host: false, timedOut: false };
 
             const done = new Promise(resolve => {

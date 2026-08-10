@@ -157,7 +157,7 @@ class WebRTCManager {
             document.getElementById('localVideo').srcObject = this.localStream;
 
             // 2. 创建 PeerConnection
-            this.pc = new RTCPeerConnection(this.iceServers);
+            this.pc = new (window.RTCPeerConnection || window.webkitRTCPeerConnection)(this.iceServers);
             this.setupPeerConnection();
 
             // 3. 添加本地流
@@ -201,7 +201,7 @@ class WebRTCManager {
             document.getElementById('localVideo').srcObject = this.localStream;
 
             // 2. 创建 PeerConnection
-            this.pc = new RTCPeerConnection(this.iceServers);
+            this.pc = new (window.RTCPeerConnection || window.webkitRTCPeerConnection)(this.iceServers);
             this.setupPeerConnection();
 
             // 3. 添加本地流
