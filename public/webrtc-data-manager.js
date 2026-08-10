@@ -264,7 +264,12 @@ class WebRTCDataManager {
     _handleAnswer(data) {
         if (!this.pc) return;
         var self = this;
-        this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp)).catch(function (e) {
+        var fileId = data.body.fileId;
+        var transfer = this._findTransfer(fileId);
+        this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp)).then(function () {
+            // remoteDescription 设置完成后，发送已积累的 ICE 候选
+            if (transfer) self._flushIce(transfer);
+        }).catch(function (e) {
             console.error('[FileTransfer] 设置 Answer 失败:', e);
         });
     }

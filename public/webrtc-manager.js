@@ -287,8 +287,10 @@ class WebRTCManager {
     // === 处理 Answer（主叫方收到被叫方的 Answer）===
     handleAnswer(data) {
         if (!this.pc) return;
-        this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
-        // setRemoteDescription 会重启 ICE 收集，收集完成后 onicegatheringstatechange 统一 flush
+        this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp)).then(() => {
+            // answer 设置完成后，flush 已积累的 ICE 候选（ICE 收集可能在 answer 到达前就完成了）
+            this._flushIce();
+        }).catch(e => console.error('设置 Answer 失败:', e));
     }
 
     // === 发送缓存的 ICE candidates（需 setRemoteDescription 完成后） ===
