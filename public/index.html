@@ -275,6 +275,7 @@
                             this.addSysMsg('* 连接失败(' + (reason || '?') + ')，已重试 ' + this.connRetries + ' 次，请刷新页面重试。');
                             return;
                         }
+                        this.connStatus = 'connecting';
                         this.addSysMsg('* 连接断开(' + (reason || '?') + ')，正在重试 (' + this.connRetries + '/5)...');
                         var elapsed = Date.now() - startTime;
                         var delay = Math.min(this.connRetries * 2000, 10000);
@@ -357,10 +358,14 @@
                     });
 
                     ws.addEventListener('close', (e) => {
+                        // 如果 open 从未触发（this.ws 仍为 null），说明是连接建立失败
+                        if (!this.ws) {
+                            this.addSysMsg('* 连接错误: WebSocket 连接失败 (ERR_CONNECTION_RESET 等)，请检查网络或服务端状态');
+                        }
                         rejoin('close ' + (e.code || '?') + (e.reason ? ' (' + e.reason + ')' : ''));
                     });
-                    ws.addEventListener('error', () => {
-                        // close 事件始终紧随 error，统一由 close 处理重连
+                    ws.addEventListener('error', (e) => {
+                        // close 事件始终紧随 error，统一由 close 检测并处理错误显示
                     });
                 },
 
