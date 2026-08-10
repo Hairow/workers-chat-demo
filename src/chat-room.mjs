@@ -227,6 +227,14 @@ export class ChatRoom {
     'webrtc-answer': { required: ['targetUserId', 'sdp'], optional: ['callId'], maxLen: {} },
     'webrtc-ice': { required: ['targetUserId', 'candidates'], optional: ['callId'], maxLen: {} },
     hangup: { required: ['targetUserId'], optional: ['callId'], maxLen: {} },
+    // 文件传输信令
+    'file-transfer-request': { required: ['targetUserId', 'fileId', 'filename', 'fileSize', 'fileType', 'totalChunks'], optional: [], maxLen: { filename: 256 } },
+    'file-transfer-accept': { required: ['targetUserId', 'fileId'], optional: [], maxLen: {} },
+    'file-transfer-reject': { required: ['targetUserId', 'fileId'], optional: [], maxLen: {} },
+    'file-offer': { required: ['targetUserId', 'sdp'], optional: ['fileId'], maxLen: {} },
+    'file-answer': { required: ['targetUserId', 'sdp'], optional: ['fileId'], maxLen: {} },
+    'file-ice': { required: ['targetUserId', 'candidates'], optional: ['fileId'], maxLen: {} },
+    'file-transfer-complete': { required: ['targetUserId', 'fileId'], optional: [], maxLen: {} },
 
   }
 
@@ -330,6 +338,16 @@ export class ChatRoom {
         case 'hangup':
           // 挂断通知
           await this.relayHangup(data, webSocket);
+          break;
+        // 文件传输信令转发
+        case 'file-transfer-request':
+        case 'file-transfer-accept':
+        case 'file-transfer-reject':
+        case 'file-transfer-complete':
+        case 'file-offer':
+        case 'file-answer':
+        case 'file-ice':
+          await this.forwardFileSignal(data, webSocket);
           break;
         default:
           console.warn('未知消息类型:', data.type);
@@ -712,6 +730,25 @@ export class ChatRoom {
         try {
           ws.send(payload);
         } catch (_) { /* 对方已断开，忽略 */ }
+        break;
+      }
+    }
+  }
+
+  // === 转发文件传输信令（简单点对点，无需 callState）===
+  async forwardFileSignal(data, senderWs) {
+    const fromUserId = this.sessions.get(senderWs).userId;
+    const targetUserId = data.body.targetUserId;
+
+    for (const [ws, s] of this.sessions) {
+      if (s.userId === targetUserId && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: data.type,
+          body: {
+            ...data.body,
+            fromUserId: fromUserId,
+          }
+        }));
         break;
       }
     }

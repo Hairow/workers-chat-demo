@@ -100,6 +100,8 @@
                     <span>{{ user.name }}{{ user.ip ? ' (' + user.ip + ')' : '' }}</span>
                     <button v-if="user.name !== username && !inCall" class="call-btn"
                         @click="callUser(user)">📞</button>
+                    <button v-if="user.name !== username" class="file-btn"
+                        @click="sendFileTo(user)">📁</button>
                 </p>
                 <p v-if="!roster.length" style="color:var(--text-secondary);font-size:12px;">暂无用户</p>
             </div>
@@ -145,11 +147,48 @@
             <button id="hangupBtn" type="button" @click="hangupCall">挂断</button>
         </div>
 
+        <!-- 文件传输面板 -->
+        <div id="transferPanel" v-if="fileTransfers.length">
+            <div class="transfer-header">
+                <span>文件传输</span>
+                <span class="transfer-close" @click="clearDoneTransfers">✕</span>
+            </div>
+            <div v-for="t in fileTransfers" :key="t.fileId" class="transfer-item" :class="t.status">
+                <div class="transfer-info">
+                    <span class="transfer-icon">{{ t.role === 'sender' ? '📤' : '📥' }}</span>
+                    <span class="transfer-name">{{ t.fileName }}</span>
+                    <span class="transfer-size">{{ formatSize(t.fileSize) }}</span>
+                </div>
+                <div class="transfer-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" :style="{ width: transferProgress(t) + '%' }"></div>
+                    </div>
+                    <span class="transfer-percent">{{ transferProgress(t) }}%</span>
+                </div>
+                <div class="transfer-status">
+                    <template v-if="t.status === 'pending' && t.role === 'receiver'">
+                        <button class="transfer-accept" @click="acceptFile(t.fileId)">接受</button>
+                        <button class="transfer-reject" @click="rejectFile(t.fileId)">拒绝</button>
+                    </template>
+                    <template v-else-if="t.status === 'waiting'">等待对方接受...</template>
+                    <template v-else-if="t.status === 'connecting'">正在建立连接...</template>
+                    <template v-else-if="t.status === 'transferring'">{{ t.role === 'sender' ? '发送中' : '接收中' }}...</template>
+                    <template v-else-if="t.status === 'done'">✓ 完成</template>
+                    <template v-else-if="t.status === 'rejected'">✗ 已拒绝</template>
+                    <template v-else-if="t.status === 'error'">✗ {{ t.error || '失败' }}</template>
+                </div>
+            </div>
+        </div>
+
+        <!-- 文件传输隐藏 input -->
+        <input type="file" ref="transferFileInput" style="display:none" @change="onTransferFileSelected">
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.min.js"></script>
     <script src="./webrtc-detect.js"></script>
     <script src="./webrtc-manager.js"></script>
+    <script src="./webrtc-data-manager.js"></script>
     <script>
         var app = new Vue({
             el: '#app',
@@ -188,6 +227,11 @@
                 // WebRTC 通话相关
                 inCall: false,              // 是否正在通话中
                 webrtcManager: null,        // WebRTC 管理器实例
+
+                // 文件传输相关
+                fileDataManager: null,      // WebRTCDataManager 实例
+                fileTransfers: [],          // 传输任务列表
+                _pendingTransferUser: null, // 待发送文件的用户
             },
             computed: {
                 isMediaType() { return ['image', 'audio', 'video'].includes(this.currentMsgType); },
@@ -302,6 +346,29 @@
                             }
                         });
                         this.webrtcManager.init();
+
+                        // 初始化文件传输管理器
+                        this.fileDataManager = new WebRTCDataManager(ws, this.username, {
+                            onTransferUpdate: function (transfer) {
+                                // 更新传输列表（Vue 响应式）
+                                var idx = -1;
+                                for (var i = 0; i < self.fileTransfers.length; i++) {
+                                    if (self.fileTransfers[i].fileId === transfer.fileId) { idx = i; break; }
+                                }
+                                if (idx >= 0) {
+                                    self.$set(self.fileTransfers, idx, Object.assign({}, transfer));
+                                } else {
+                                    self.fileTransfers.push(Object.assign({}, transfer));
+                                }
+                            },
+                            onIncomingFile: function (transfer) {
+                                self.addSysMsg('* ' + (transfer.fromUserId || 'someone') + ' 向你发送文件: ' + transfer.fileName);
+                            },
+                            onError: function (msg) {
+                                self.addSysMsg('* 文件传输错误: ' + msg);
+                            }
+                        });
+                        this.fileDataManager.init();
                     });
 
                     ws.addEventListener('message', (event) => {
@@ -338,6 +405,11 @@
                                 'webrtc-offer', 'webrtc-answer', 'webrtc-ice',
                                 'peer-hangup', 'offer-error', 'answer-error'];
                             if (webrtcTypes.indexOf(data.type) !== -1) return;
+
+                            // 过滤文件传输信令消息（由 WebRTCDataManager 处理）
+                            var fileTypes = ['file-transfer-request', 'file-transfer-accept', 'file-transfer-reject',
+                                'file-offer', 'file-answer', 'file-ice', 'file-transfer-complete'];
+                            if (fileTypes.indexOf(data.type) !== -1) return;
 
                             // Calculate and log the time difference between message send and receipt.
                             // 计算并打印消息发送到接收的时间差。
@@ -515,6 +587,46 @@
                         this.webrtcManager.hangup();
                     }
                     this.inCall = false;
+                },
+
+                // ── 文件传输 ─────────────────────────
+                sendFileTo: function (user) {
+                    this._pendingTransferUser = user;
+                    this.$refs.transferFileInput.value = '';
+                    this.$refs.transferFileInput.click();
+                },
+                onTransferFileSelected: function () {
+                    var user = this._pendingTransferUser;
+                    if (!user || !this.fileDataManager) return;
+                    var fi = this.$refs.transferFileInput;
+                    var file = fi && fi.files[0];
+                    if (!file) return;
+                    this.fileDataManager.sendFile(user.userId, file);
+                    this._pendingTransferUser = null;
+                },
+                acceptFile: function (fileId) {
+                    if (this.fileDataManager) this.fileDataManager.acceptFile(fileId);
+                },
+                rejectFile: function (fileId) {
+                    if (this.fileDataManager) this.fileDataManager.rejectFile(fileId);
+                },
+                transferProgress: function (t) {
+                    if (t.role === 'sender') {
+                        return t.totalChunks ? Math.round(t.sentChunks / t.totalChunks * 100) : 0;
+                    } else {
+                        return t.totalChunks ? Math.round(t.receivedChunks / t.totalChunks * 100) : 0;
+                    }
+                },
+                formatSize: function (bytes) {
+                    if (!bytes) return '';
+                    if (bytes < 1024) return bytes + ' B';
+                    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+                },
+                clearDoneTransfers: function () {
+                    this.fileTransfers = this.fileTransfers.filter(function (t) {
+                        return t.status !== 'done' && t.status !== 'rejected' && t.status !== 'error';
+                    });
                 },
 
                 // ── Roster ─────────────────────────────────

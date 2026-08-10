@@ -601,3 +601,167 @@ p {
         max-height: 100px;
     }
 }
+
+/* ── 文件传输按钮 ─────────────────── */
+.file-btn {
+    flex-shrink: 0;
+    padding: 0 4px;
+    font-size: 14px;
+    line-height: 1;
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: .6;
+    transition: opacity var(--transition);
+}
+
+.file-btn:hover {
+    opacity: 1;
+}
+
+/* ── 文件传输面板 ─────────────────── */
+#transferPanel {
+    position: fixed;
+    bottom: 88px;
+    right: 10px;
+    width: 280px;
+    max-height: 50vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    z-index: 20;
+    font-size: 13px;
+}
+
+.transfer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+}
+
+.transfer-close {
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: color var(--transition);
+}
+
+.transfer-close:hover {
+    color: var(--danger);
+}
+
+.transfer-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.transfer-item:last-child {
+    border-bottom: none;
+}
+
+.transfer-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.transfer-icon {
+    font-size: 14px;
+}
+
+.transfer-name {
+    flex: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.transfer-size {
+    font-size: 11px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.transfer-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--bg);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.transfer-percent {
+    font-size: 11px;
+    color: var(--text-secondary);
+    min-width: 32px;
+    text-align: right;
+}
+
+.transfer-status {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.transfer-item.done .transfer-status {
+    color: #34c759;
+}
+
+.transfer-item.error .transfer-status,
+.transfer-item.rejected .transfer-status {
+    color: var(--danger);
+}
+
+.transfer-accept,
+.transfer-reject {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-right: 6px;
+}
+
+.transfer-accept {
+    background: var(--accent);
+    color: #fff;
+}
+
+.transfer-accept:hover {
+    background: var(--accent-hover);
+}
+
+.transfer-reject {
+    background: var(--bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.transfer-reject:hover {
+    background: var(--border);
+}
