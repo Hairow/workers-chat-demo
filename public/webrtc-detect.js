@@ -64,7 +64,9 @@ class WebRTCDetector {
 
     checkCodecSupport() {
         try {
-            const pc = new RTCPeerConnection();
+            const PeerConnection = window.RTCPeerConnection || window.webkitRTCPeerConnection;
+            if (!PeerConnection) return this.capabilities.codecs;
+            const pc = new PeerConnection();
 
             // 视频编解码器
             const videoCodecs = [];
