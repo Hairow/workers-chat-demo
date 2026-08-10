@@ -395,10 +395,11 @@ class WebRTCDataManager {
         this.pc.onconnectionstatechange = function () {
             if (!self.pc) return;
             console.log('[FileTransfer] Connection:', self.pc.connectionState);
-            if (self.pc.connectionState === 'failed' || self.pc.connectionState === 'disconnected') {
+            // disconnected 是临时状态（ICE 仍在协商），只有 failed 才是真正的连接失败
+            if (self.pc.connectionState === 'failed') {
                 if (transfer.status !== 'done') {
                     transfer.status = 'error';
-                    transfer.error = '连接断开';
+                    transfer.error = '连接失败';
                     self._notify(transfer);
                 }
                 self._cleanup();
