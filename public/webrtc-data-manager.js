@@ -7,7 +7,7 @@ class WebRTCDataManager {
         this.userId = userId;
         this.callbacks = callbacks || {};  // onTransferUpdate(transfer), onIncomingFile(file), onError(msg)
 
-        this.CHUNK_SIZE = 64 * 1024;  // 64KB 分片
+        this.CHUNK_SIZE = 60 * 1024;  // 64KB 分片
         this.PROGRESS_INTERVAL = 10;   // 每 10 片回传一次进度确认
 
         this.pc = null;                // 当前 PeerConnection
