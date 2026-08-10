@@ -110,10 +110,20 @@ class WebRTCDataManager {
         transfer.status = 'accepting';
         this._notify(transfer);
 
-        this.ws.send(JSON.stringify({
-            type: 'file-transfer-accept',
-            body: { targetUserId: transfer.fromUserId, fileId: fileId }
-        }));
+        var self = this;
+        // 尝试初始化 OPFS，失败则回退到内存
+        this._initOpfs(transfer).then(function () {
+            self.ws.send(JSON.stringify({
+                type: 'file-transfer-accept',
+                body: { targetUserId: transfer.fromUserId, fileId: fileId }
+            }));
+        }).catch(function (e) {
+            console.warn('[FileTransfer] OPFS 初始化失败，使用内存模式:', e);
+            self.ws.send(JSON.stringify({
+                type: 'file-transfer-accept',
+                body: { targetUserId: transfer.fromUserId, fileId: fileId }
+            }));
+        });
     }
 
     // === 接收方：拒绝文件 ===
@@ -196,7 +206,9 @@ class WebRTCDataManager {
             totalChunks: body.totalChunks,
             receivedChunks: 0,
             receivedBytes: 0,
-            chunks: [],
+            chunks: [],           // OPFS 不可用时回退到内存
+            opfsFile: null,       // OPFS FileHandle
+            opfsWriter: null,     // OPFS WritableStreamDefaultWriter
             status: 'pending',   // pending -> accepting -> transferring -> done / error
             startTime: 0,
         };
@@ -289,8 +301,17 @@ class WebRTCDataManager {
                 return;
             }
 
-            // ArrayBuffer 为文件分片
-            transfer.chunks.push(data);
+            // ArrayBuffer 为文件分片，优先写入 OPFS
+            if (transfer.opfsWriter) {
+                transfer.opfsWriter.write(data).catch(function (e) {
+                    console.error('[FileTransfer] OPFS 写入失败:', e);
+                    transfer.status = 'error';
+                    transfer.error = '文件写入失败';
+                    self._notify(transfer);
+                });
+            } else {
+                transfer.chunks.push(data);
+            }
             transfer.receivedBytes += data.byteLength;
             transfer.receivedChunks++;
             self._notify(transfer);
@@ -312,97 +333,123 @@ class WebRTCDataManager {
         };
     }
 
-    // 发送方：分片发送文件
+    // 发送方：流式读取并发送文件
     _startSending(transfer) {
         var self = this;
         var file = transfer.file;
-        var offset = 0;
         var chunkIndex = 0;
+        var reader = file.stream().getReader();
 
-        function sendNext() {
+        function sendChunk(chunk) {
+            // 检查缓冲区压力，防止溢出
+            if (self.dc.bufferedAmount > self.CHUNK_SIZE * 8) {
+                return new Promise(function (resolve) {
+                    setTimeout(resolve, 50);
+                }).then(function () {
+                    return sendChunk(chunk);
+                });
+            }
+            try {
+                self.dc.send(chunk);
+            } catch (e) {
+                transfer.status = 'error';
+                transfer.error = '发送失败: ' + (e.message || e.name);
+                self._notify(transfer);
+                return Promise.reject(e);
+            }
+            transfer.sentBytes += chunk.byteLength;
+            transfer.sentChunks = ++chunkIndex;
+            if (chunkIndex % 5 === 0) {
+                self._notify(transfer);
+            }
+            return Promise.resolve();
+        }
+
+        function pump() {
             if (!self.dc || self.dc.readyState !== 'open') {
                 transfer.status = 'error';
                 transfer.error = 'DataChannel 已断开';
                 self._notify(transfer);
+                reader.cancel();
                 return;
             }
-
-            // 检查缓冲区压力，防止溢出
-            if (self.dc.bufferedAmount > self.CHUNK_SIZE * 8) {
-                setTimeout(sendNext, 50);
-                return;
-            }
-
-            if (chunkIndex >= transfer.totalChunks) {
-                // 全部发完，发送完成信号
-                try { self.dc.send('__TRANSFER_DONE__'); } catch (e) {
-                    transfer.status = 'error';
-                    transfer.error = '发送完成信号失败';
+            reader.read().then(function (result) {
+                if (result.done) {
+                    // 全部发完，发送完成信号
+                    try { self.dc.send('__TRANSFER_DONE__'); } catch (e) {
+                        transfer.status = 'error';
+                        transfer.error = '发送完成信号失败';
+                        self._notify(transfer);
+                        return;
+                    }
+                    transfer.status = 'done';
+                    transfer.sentBytes = transfer.fileSize;
                     self._notify(transfer);
+                    self._waitForDrain(function () {
+                        self._cleanup();
+                    });
                     return;
                 }
-                transfer.status = 'done';
-                transfer.sentBytes = transfer.fileSize;
-                self._notify(transfer);
-                // 等待缓冲区排空后再关闭，确保接收方收到所有数据
-                self._waitForDrain(function () {
-                    self._cleanup();
+                sendChunk(result.value).then(pump).catch(function () {
+                    reader.cancel();
                 });
-                return;
-            }
-
-            var slice = file.slice(offset, offset + self.CHUNK_SIZE);
-            var reader = new FileReader();
-            reader.onload = function () {
-                try {
-                    self.dc.send(reader.result);
-                } catch (e) {
-                    transfer.status = 'error';
-                    transfer.error = '发送失败: ' + (e.message || e.name);
-                    self._notify(transfer);
-                    return;
-                }
-                offset += reader.result.byteLength;
-                transfer.sentBytes = offset;
-                transfer.sentChunks = chunkIndex + 1;
-                chunkIndex++;
-
-                // 节流通知 UI
-                if (chunkIndex % 5 === 0 || chunkIndex === transfer.totalChunks) {
-                    self._notify(transfer);
-                }
-                sendNext();
-            };
-            reader.onerror = function () {
+            }).catch(function (e) {
+                console.error('[FileTransfer] 文件流读取失败:', e);
                 transfer.status = 'error';
                 transfer.error = '文件读取失败';
                 self._notify(transfer);
-            };
-            reader.readAsArrayBuffer(slice);
+            });
         }
 
-        sendNext();
+        pump();
     }
 
-    // 接收方：合并文件并下载
+    // 接收方：完成接收并触发下载
     _finishReceive(transfer) {
-        var blob = new Blob(transfer.chunks, { type: transfer.fileType });
-        transfer.status = 'done';
-        transfer.receivedBytes = blob.size;
-        transfer.blob = blob;
-        this._notify(transfer);
+        var self = this;
 
-        // 触发下载
-        var url = URL.createObjectURL(blob);
+        if (transfer.opfsWriter && transfer.opfsFile) {
+            // OPFS 模式：关闭 writer，从 OPFS 读取文件并下载
+            transfer.opfsWriter.close().then(function () {
+                return transfer.opfsFile.getFile();
+            }).then(function (file) {
+                transfer.status = 'done';
+                transfer.receivedBytes = file.size;
+                self._notify(transfer);
+                self._triggerDownload(file, transfer.fileName);
+                // 清理 OPFS 临时文件
+                self._cleanupOpfs(transfer);
+                self._cleanup();
+            }).catch(function (e) {
+                console.error('[FileTransfer] OPFS 读取失败:', e);
+                transfer.status = 'error';
+                transfer.error = '文件读取失败';
+                self._notify(transfer);
+                self._cleanupOpfs(transfer);
+                self._cleanup();
+            });
+        } else {
+            // 内存模式：合并 chunks 为 Blob
+            var blob = new Blob(transfer.chunks, { type: transfer.fileType });
+            transfer.status = 'done';
+            transfer.receivedBytes = blob.size;
+            transfer.blob = blob;
+            this._notify(transfer);
+            this._triggerDownload(blob, transfer.fileName);
+            this._cleanup();
+        }
+    }
+
+    // 触发浏览器下载
+    _triggerDownload(fileOrBlob, fileName) {
+        var url = URL.createObjectURL(fileOrBlob);
         var a = document.createElement('a');
         a.href = url;
-        a.download = transfer.fileName;
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
-
-        this._cleanup();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
     }
 
     // ========== PeerConnection 信令 ==========
@@ -497,6 +544,36 @@ class WebRTCDataManager {
         this.pc = null;
         this.iceBatch.clear();
         this.pendingFileId = null;
+    }
+
+    // 初始化 OPFS 文件（接收方用）
+    _initOpfs(transfer) {
+        if (!navigator.storage || !navigator.storage.getDirectory) {
+            return Promise.reject(new Error('OPFS 不可用'));
+        }
+        var tempName = 'transfer_' + transfer.fileId + '_' + transfer.fileName;
+        return navigator.storage.getDirectory().then(function (root) {
+            return root.getFileHandle(tempName, { create: true });
+        }).then(function (fileHandle) {
+            transfer.opfsFile = fileHandle;
+            return fileHandle.createWritable();
+        }).then(function (writer) {
+            transfer.opfsWriter = writer;
+            console.log('[FileTransfer] OPFS 初始化成功:', tempName);
+        });
+    }
+
+    // 清理 OPFS 临时文件
+    _cleanupOpfs(transfer) {
+        if (!transfer.opfsFile) return;
+        var fileName = transfer.opfsFile.name;
+        transfer.opfsFile = null;
+        transfer.opfsWriter = null;
+        navigator.storage.getDirectory().then(function (root) {
+            return root.removeEntry(fileName).catch(function (e) {
+                console.warn('[FileTransfer] OPFS 清理失败:', e);
+            });
+        });
     }
 
     // 等待 DataChannel 缓冲区排空后再关闭
