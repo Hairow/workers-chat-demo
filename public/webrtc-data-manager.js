@@ -12,7 +12,7 @@ class WebRTCDataManager {
 
         this.pc = null;                // 当前 PeerConnection
         this.dc = null;                // 当前 DataChannel
-        this.iceBatch = new Set();
+        this.pendingIceCandidates = [];
         this.transfers = [];           // 传输任务列表
         this.pendingFileId = null;     // 当前待处理的传输 ID
 
@@ -241,7 +241,9 @@ class WebRTCDataManager {
             this._setupPeerConnection(transfer);
 
             await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));
-            var answer = await this.pc.createAnswer();
+            // 排空在 offer 到达前收到的 ICE 候选
+            await this._flushPendingIce();
+            var answer = await this.pc.createAnswer();//触发ice收集
             await this.pc.setLocalDescription(answer);
 
             this.ws.send(JSON.stringify({
@@ -267,8 +269,8 @@ class WebRTCDataManager {
         var fileId = data.body.fileId;
         var transfer = this._findTransfer(fileId);
         this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp)).then(function () {
-            // remoteDescription 设置完成后，发送已积累的 ICE 候选
-            if (transfer) self._flushIce(transfer);
+            // answer 设置完成后，排空等待中的 ICE 候选
+            self._flushPendingIce();
         }).catch(function (e) {
             console.error('[FileTransfer] 设置 Answer 失败:', e);
         });
@@ -492,17 +494,22 @@ class WebRTCDataManager {
 
     _setupPeerConnection(transfer) {
         var self = this;
-        this.iceBatch = new Set();
+        this.pendingIceCandidates = [];
 
         this.pc.onicecandidate = function (event) {
             if (event.candidate) {
-                self.iceBatch.add(JSON.stringify(event.candidate));
-            }
-        };
-
-        this.pc.onicegatheringstatechange = function () {
-            if (self.pc && self.pc.iceGatheringState === 'complete') {
-                self._flushIce(transfer);
+                // trickle ICE：收集到就立即发送
+                var targetUserId = transfer.role === 'sender' ? transfer.targetUserId : transfer.fromUserId;
+                if (targetUserId) {
+                    self.ws.send(JSON.stringify({
+                        type: 'file-ice',
+                        body: {
+                            targetUserId: targetUserId,
+                            fileId: transfer.fileId,
+                            candidate: event.candidate
+                        }
+                    }));
+                }
             }
         };
 
@@ -521,25 +528,27 @@ class WebRTCDataManager {
         };
     }
 
-    _flushIce(transfer) {
+    // 排空等待中的 ICE 候选
+    async _flushPendingIce() {
         if (!this.pc || !this.pc.remoteDescription) return;
-        var targetUserId = transfer.role === 'sender' ? transfer.targetUserId : transfer.fromUserId;
-        if (targetUserId && this.iceBatch.size > 0) {
-            this.ws.send(JSON.stringify({
-                type: 'file-ice',
-                body: {
-                    targetUserId: targetUserId,
-                    fileId: transfer.fileId,
-                    candidates: [...this.iceBatch].map(JSON.parse)
-                }
-            }));
+        var candidates = this.pendingIceCandidates.splice(0);
+        for (var i = 0; i < candidates.length; i++) {
+            try {
+                await this.pc.addIceCandidate(new RTCIceCandidate(candidates[i]));
+            } catch (e) {
+                console.error('[FileTransfer] Add pending ICE candidate error:', e);
+            }
         }
-        this.iceBatch.clear();
     }
 
     async _handleIce(data) {
         if (!this.pc) return;
-        var candidates = data.body.candidates || [];
+        var candidates = data.body.candidates || (data.body.candidate ? [data.body.candidate] : []);
+        // 如果 remoteDescription 还没设置，先排队等待
+        if (!this.pc.remoteDescription) {
+            this.pendingIceCandidates.push.apply(this.pendingIceCandidates, candidates);
+            return;
+        }
         for (var i = 0; i < candidates.length; i++) {
             try {
                 await this.pc.addIceCandidate(new RTCIceCandidate(candidates[i]));
@@ -580,7 +589,7 @@ class WebRTCDataManager {
         try { if (this.pc) { this.pc.close(); } } catch (e) { /* 忽略关闭错误 */ }
         this.dc = null;
         this.pc = null;
-        this.iceBatch.clear();
+        this.pendingIceCandidates = [];
         this.pendingFileId = null;
     }
 

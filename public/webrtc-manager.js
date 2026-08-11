@@ -12,7 +12,7 @@ class WebRTCManager {
         this.calleeUserId = null;     // 主叫方记录被叫方 userId
         this.pendingCallFrom = null;  // 被叫方记录主叫方 userId
         this.callbacks = callbacks || {};  // 回调：onCallStateChange(active), onStatus(msg)
-        this.iceBatch = new Set();    // Set(候选JSON字符串)，自动去重
+        this.pendingIceCandidates = [];  // 收到的 ICE 候选队列（setRemoteDescription 前暂存）
         this.currentCallId = null;    // 当前通话 ID，用于 ICE 信令
 
         // ICE 服务器配置（仅 STUN，无需凭据）
@@ -210,8 +210,8 @@ class WebRTCManager {
             });
 
             // 4. 创建 Offer
-            const offer = await this.pc.createOffer();
-            await this.pc.setLocalDescription(offer);//会触发ice收集
+            const offer = await this.pc.createOffer();//会触发ice收集
+            await this.pc.setLocalDescription(offer);
 
             // 5. 通过 DO 发送 Offer 给被叫方
             this.ws.send(JSON.stringify({
@@ -269,6 +269,8 @@ class WebRTCManager {
         }
 
         await this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp));//会触发ice收集
+        // 排空在 offer 到达前收到的 ICE 候选
+        await this._flushPendingIce();
 
         const answer = await this.pc.createAnswer();
         await this.pc.setLocalDescription(answer);//会触发ice收集
@@ -288,38 +290,38 @@ class WebRTCManager {
     handleAnswer(data) {
         if (!this.pc) return;
         this.pc.setRemoteDescription(new RTCSessionDescription(data.body.sdp)).then(() => {
-            // answer 设置完成后，flush 已积累的 ICE 候选（ICE 收集可能在 answer 到达前就完成了）
-            this._flushIce();
+            // answer 设置完成后，排空等待中的 ICE 候选
+            this._flushPendingIce();
         }).catch(e => console.error('设置 Answer 失败:', e));
     }
 
-    // === 发送缓存的 ICE candidates（需 setRemoteDescription 完成后） ===
-    _flushIce() {
-        if (!this.pc || !this.pc.remoteDescription) return;
-        const targetUserId = this.isCalling ? this.calleeUserId : this.pendingCallFrom;
-        if (targetUserId && this.iceBatch.size > 0) {
-            this.ws.send(JSON.stringify({
-                type: 'webrtc-ice',
-                body: {
-                    targetUserId: targetUserId,
-                    candidates: [...this.iceBatch].map(JSON.parse),
-                    callId: this.currentCallId,
-                }
-            }));
-        }
-        this.iceBatch.clear();
-    }
-
-    // === 处理 ICE Candidate ===
-    // 兼容批量（candidates 数组）和单个（candidate 对象）两种格式
+    // === 处理 ICE Candidate（trickle ICE） ===
     async handleIceCandidate(data) {
         if (!this.pc) return;
         const candidates = data.body.candidates || (data.body.candidate ? [data.body.candidate] : []);
+        // 如果 remoteDescription 还没设置，先排队等待
+        if (!this.pc.remoteDescription) {
+            this.pendingIceCandidates.push(...candidates);
+            return;
+        }
         for (const c of candidates) {
             try {
                 await this.pc.addIceCandidate(new RTCIceCandidate(c));
             } catch (error) {
                 console.error('Add ICE candidate error:', error);
+            }
+        }
+    }
+
+    // 排空等待中的 ICE 候选
+    async _flushPendingIce() {
+        if (!this.pc || !this.pc.remoteDescription) return;
+        const candidates = this.pendingIceCandidates.splice(0);
+        for (const c of candidates) {
+            try {
+                await this.pc.addIceCandidate(new RTCIceCandidate(c));
+            } catch (error) {
+                console.error('Add pending ICE candidate error:', error);
             }
         }
     }
@@ -338,17 +340,21 @@ class WebRTCManager {
         };
 
         // 收集 ICE Candidate（Map key 自动去重，不逐个发送，等收集完毕批量发送）
-        this.iceBatch = new Set();
+        this.pendingIceCandidates = [];
         this.pc.onicecandidate = (event) => {
             if (event.candidate) {
-                this.iceBatch.add(JSON.stringify(event.candidate));
-            }
-        };
-
-        // ICE 收集完成后，等 setRemoteDescription 后才能发送候选
-        this.pc.onicegatheringstatechange = () => {
-            if (this.pc.iceGatheringState === 'complete') {
-                this._flushIce();
+                // trickle ICE：收集到就立即发送
+                const targetUserId = this.isCalling ? this.calleeUserId : this.pendingCallFrom;
+                if (targetUserId) {
+                    this.ws.send(JSON.stringify({
+                        type: 'webrtc-ice',
+                        body: {
+                            targetUserId: targetUserId,
+                            candidate: event.candidate,
+                            callId: this.currentCallId,
+                        }
+                    }));
+                }
             }
         };
 

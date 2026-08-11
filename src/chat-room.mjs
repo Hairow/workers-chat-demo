@@ -281,19 +281,35 @@ export class ChatRoom {
         return;
       }
 
+      // Parse message first to check type before rate limiting
+      // 先解析消息，根据类型判断是否需要限流
+      let data;
+      try {
+        data = JSON.parse(msg);
+      } catch (e) {
+        webSocket.send(JSON.stringify({ error: "Invalid JSON." }));
+        return;
+      }
+
+      let type = data.type;
+      let body = data.body;
+
+      // WebRTC 信令消息不限流（视频通话 + 文件传输）
+      const WEBRTC_SIGNALING_TYPES = new Set([
+        'webrtc-offer', 'webrtc-answer', 'webrtc-ice',
+        'call-user', 'call-accept', 'call-reject', 'call-hangup',
+        'file-transfer-request', 'file-transfer-accept', 'file-transfer-reject',
+        'file-offer', 'file-answer', 'file-ice', 'file-transfer-complete',
+      ]);
+
       // Check if the user is over their rate limit and reject the message if so.
-      // 检查用户是否请求过于频繁，如果是则拒绝消息。
-      if (!session.limiter.checkLimit()) {
+      // 检查用户是否请求过于频繁，如果是则拒绝消息（WebRTC 信令除外）。
+      if (!WEBRTC_SIGNALING_TYPES.has(type) && !session.limiter.checkLimit()) {
         webSocket.send(JSON.stringify({
           error: "Your IP is being rate-limited, please try again later."
         }));
         return;
       }
-
-      let data = JSON.parse(msg);
-
-      let type = data.type;
-      let body = data.body;
 
       if (!type || !body) {
         webSocket.send(JSON.stringify({ error: "Missing 'type' or 'body' in message." }));
