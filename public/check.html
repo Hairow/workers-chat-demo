@@ -48,11 +48,13 @@
             text-align: center;
             margin-bottom: 24px;
         }
+
         header h1 {
             font-size: 22px;
             font-weight: 600;
             letter-spacing: -0.3px;
         }
+
         header p {
             color: var(--text-secondary);
             font-size: 13px;
@@ -65,6 +67,7 @@
             margin-bottom: 20px;
             flex-wrap: wrap;
         }
+
         .summary-chip {
             flex: 1;
             min-width: 120px;
@@ -73,23 +76,38 @@
             padding: 14px 16px;
             text-align: center;
         }
+
         .summary-chip .icon {
             font-size: 22px;
             margin-bottom: 4px;
         }
+
         .summary-chip .label {
             font-size: 12px;
             color: var(--text-secondary);
         }
+
         .summary-chip .val {
             font-size: 14px;
             font-weight: 600;
             margin-top: 2px;
         }
-        .summary-chip.ok .val { color: var(--green); }
-        .summary-chip.warn .val { color: var(--yellow); }
-        .summary-chip.fail .val { color: var(--red); }
-        .summary-chip.checking .val { color: var(--blue); }
+
+        .summary-chip.ok .val {
+            color: var(--green);
+        }
+
+        .summary-chip.warn .val {
+            color: var(--yellow);
+        }
+
+        .summary-chip.fail .val {
+            color: var(--red);
+        }
+
+        .summary-chip.checking .val {
+            color: var(--blue);
+        }
 
         .section {
             background: var(--card-bg);
@@ -98,6 +116,7 @@
             margin-bottom: 14px;
             border: 1px solid var(--border);
         }
+
         .section h3 {
             font-size: 15px;
             font-weight: 600;
@@ -106,6 +125,7 @@
             align-items: center;
             gap: 8px;
         }
+
         .section h3 .status-dot {
             width: 8px;
             height: 8px;
@@ -113,10 +133,22 @@
             display: inline-block;
             margin-left: auto;
         }
-        .status-dot.ok { background: var(--green); }
-        .status-dot.warn { background: var(--yellow); }
-        .status-dot.fail { background: var(--red); }
-        .status-dot.idle { background: var(--text-secondary); }
+
+        .status-dot.ok {
+            background: var(--green);
+        }
+
+        .status-dot.warn {
+            background: var(--yellow);
+        }
+
+        .status-dot.fail {
+            background: var(--red);
+        }
+
+        .status-dot.idle {
+            background: var(--text-secondary);
+        }
 
         .check-row {
             display: flex;
@@ -126,12 +158,30 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.04);
             font-size: 13px;
         }
-        .check-row:last-child { border-bottom: none; }
-        .check-row .key { color: var(--text-secondary); }
-        .check-row .val { font-weight: 500; }
-        .check-row .val.pass { color: var(--green); }
-        .check-row .val.fail { color: var(--red); }
-        .check-row .val.warn { color: var(--yellow); }
+
+        .check-row:last-child {
+            border-bottom: none;
+        }
+
+        .check-row .key {
+            color: var(--text-secondary);
+        }
+
+        .check-row .val {
+            font-weight: 500;
+        }
+
+        .check-row .val.pass {
+            color: var(--green);
+        }
+
+        .check-row .val.fail {
+            color: var(--red);
+        }
+
+        .check-row .val.warn {
+            color: var(--yellow);
+        }
 
         .device-tag {
             display: inline-block;
@@ -143,7 +193,8 @@
             margin: 2px 4px 2px 0;
         }
 
-        video, canvas {
+        video,
+        canvas {
             width: 100%;
             max-width: 400px;
             border-radius: 8px;
@@ -160,6 +211,7 @@
             align-items: center;
             gap: 8px;
         }
+
         .audio-bar {
             flex: 1;
             height: 6px;
@@ -167,6 +219,7 @@
             border-radius: 3px;
             overflow: hidden;
         }
+
         .audio-bar-fill {
             height: 100%;
             width: 0%;
@@ -174,6 +227,7 @@
             border-radius: 3px;
             transition: width 0.08s linear;
         }
+
         .audio-label {
             font-size: 11px;
             color: var(--text-secondary);
@@ -195,6 +249,7 @@
             outline: none;
             cursor: pointer;
         }
+
         .device-select:focus {
             border-color: var(--accent);
         }
@@ -205,6 +260,7 @@
             flex-wrap: wrap;
             margin-top: 10px;
         }
+
         button {
             padding: 8px 16px;
             border: 1px solid var(--border);
@@ -215,26 +271,32 @@
             font-size: 13px;
             transition: background var(--transition), border-color var(--transition);
         }
+
         button:hover {
             background: var(--card-hover);
             border-color: var(--accent);
         }
+
         button:disabled {
             opacity: 0.4;
             cursor: not-allowed;
         }
+
         button.primary {
             background: var(--accent);
             border-color: var(--accent);
             color: #fff;
         }
+
         button.primary:hover {
             background: var(--accent-hover);
         }
+
         button.danger {
             border-color: var(--red);
             color: var(--red);
         }
+
         button.danger:hover {
             background: rgba(231, 76, 60, 0.12);
         }
@@ -251,10 +313,18 @@
             border-radius: 6px;
             line-height: 1.8;
         }
-        .ice-log .found { color: var(--green); }
-        .ice-log .fail { color: var(--red); }
 
-        .hidden { display: none !important; }
+        .ice-log .found {
+            color: var(--green);
+        }
+
+        .ice-log .fail {
+            color: var(--red);
+        }
+
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 
@@ -294,7 +364,9 @@
             <select class="device-select hidden" id="micSelect"></select>
             <div class="audio-bar-container hidden" id="audioMeterWrap">
                 <span style="font-size:12px;">🎤</span>
-                <div class="audio-bar"><div class="audio-bar-fill" id="audioBarFill"></div></div>
+                <div class="audio-bar">
+                    <div class="audio-bar-fill" id="audioBarFill"></div>
+                </div>
                 <span class="audio-label" id="audioLabel">- dB</span>
             </div>
             <canvas id="audioCanvas" class="hidden" width="400" height="60"></canvas>
@@ -491,7 +563,7 @@
                 const camId = getSelectedDevice('camSelect');
                 const constraints = {
                     video: camId ? { deviceId: { exact: camId }, width: { ideal: 640 }, height: { ideal: 480 } }
-                                 : { width: { ideal: 640 }, height: { ideal: 480 } },
+                        : { width: { ideal: 640 }, height: { ideal: 480 } },
                     audio: false
                 };
                 previewStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -622,8 +694,8 @@
 
             const iceConfig = {
                 iceServers: [
-                    { urls: 'stun:stun.cloudflare.com:3478' },
-                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun.chat.bilibili.com:3478' },
+                    { urls: 'stun:stun.miwifi.com:3478' },
                 ],
                 iceCandidatePoolSize: 1,
             };

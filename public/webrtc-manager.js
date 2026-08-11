@@ -18,8 +18,8 @@ class WebRTCManager {
         // ICE 服务器配置（仅 STUN，无需凭据）
         this.iceServers = {
             iceServers: [
-                { urls: 'stun:stun.cloudflare.com:3478' },
-                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun.chat.bilibili.com:3478' },
+                { urls: 'stun:stun.miwifi.com:3478' },
                 { urls: 'stun:stun.aliyun.com:3478' },       // 阿里云
                 { urls: 'stun:stun.tencentcloud.com:3478' }  // 腾讯云
             ]
