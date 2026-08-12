@@ -184,10 +184,10 @@ export class ChatRoom {
       }
     }
 
-    // Load the last 100 messages from the chat history stored on disk, and send them to the
+    // Load the last * messages from the chat history stored on disk, and send them to the
     // client.
     // 从磁盘加载最近 * 条聊天记录，发给客户端。
-    let storage = await this.storage.list({ reverse: true, limit: 5 });
+    let storage = await this.storage.list({ reverse: true, limit: 1 });
     let backlog = [...storage.values()];
     backlog.reverse();
     backlog.forEach(value => {
@@ -422,8 +422,8 @@ export class ChatRoom {
     let key = new Date(data.timestamp).toISOString();
     await this.storage.put(key, dataStr);
 
-    // Keep only the last 1000 messages (check every 100 messages to avoid blocking).
-    // 只保留最近 1000 条消息（每 100 条检查一次，减少阻塞）。
+    // Keep only the last 100 messages (check every 100 messages to avoid blocking).
+    // 只保留最近 100 条消息（每 100 条检查一次，减少阻塞）。
     this._msgCount = (this._msgCount || 0) + 1;
     if (this._msgCount % 100 === 0) {
       let allKeys = [...(await this.storage.list()).keys()];
