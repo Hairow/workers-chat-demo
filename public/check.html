@@ -437,7 +437,8 @@
 
             // 2. 编解码器
             const codecs = detector.checkCodecSupport();
-            renderCodecs(codecs);
+            const hevcPlayback = detector.checkHEVCPlayback();
+            renderCodecs(codecs, hevcPlayback);
             setDot('codecs', true);
 
             // 3. 设备列表（需要 http/https，localhost 也行）
@@ -473,12 +474,20 @@
             ).join('');
         }
 
-        function renderCodecs(codecs) {
-            const allVideo = (codecs.video || []).filter(c => c.supported);
-            const allAudio = (codecs.audio || []).filter(c => c.supported);
+        function renderCodecs(codecs, hevcPlayback) {
+            const allVideo = (codecs.video || []);
+            const allAudio = (codecs.audio || []);
+            const videoDetailRows = allVideo.map(c =>
+                `<div class="check-row"><span class="key" style="padding-left:16px;">↳ ${c.name}</span><span class="val ${c.supported ? 'pass' : 'fail'}">${c.supported ? '✓ 支持' : '✗ 不支持'}</span></div>`
+            ).join('');
+            const hevcRows = hevcPlayback ? `
+                <div class="check-row"><span class="key">HEVC 播放 (canPlayType)</span><span class="val ${hevcPlayback.canPlay ? 'pass' : 'fail'}">${hevcPlayback.canPlay ? '✓ 支持' : '✗ 不支持'}</span></div>
+                <div class="check-row"><span class="key">HEVC 播放 (MediaSource)</span><span class="val ${hevcPlayback.mse ? 'pass' : 'fail'}">${hevcPlayback.mse ? '✓ 支持' : '✗ 不支持'}</span></div>` : '';
             document.getElementById('rows-codecs').innerHTML = `
-                <div class="check-row"><span class="key">视频</span><span class="val pass">${allVideo.map(c => c.name).join(', ') || '无'}</span></div>
-                <div class="check-row"><span class="key">音频</span><span class="val pass">${allAudio.map(c => c.name).join(', ') || '无'}</span></div>
+                <div class="check-row"><span class="key">视频 (WebRTC)</span><span class="val pass">${allVideo.filter(c => c.supported).map(c => c.name).join(', ') || '无'}</span></div>
+                ${videoDetailRows}
+                <div class="check-row"><span class="key">音频</span><span class="val pass">${allAudio.filter(c => c.supported).map(c => c.name).join(', ') || '无'}</span></div>
+                ${hevcRows}
             `;
         }
 

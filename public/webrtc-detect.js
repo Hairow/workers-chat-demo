@@ -77,13 +77,15 @@ class WebRTCDetector {
                 { name: 'VP8', mimeType: 'video/VP8' },
                 { name: 'VP9', mimeType: 'video/VP9' },
                 { name: 'H264', mimeType: 'video/H264' },
-                { name: 'AV1', mimeType: 'video/AV1' }
+                { name: 'AV1', mimeType: 'video/AV1' },
+                // HEVC (H.265)：各浏览器 mimeType 实现不一（video/HEVC 或 video/H265），用正则兼容
+                { name: 'HEVC', mimeType: 'video/HEVC', regex: /hevc|h265/i }
             ];
 
             for (const codec of videoCodecList) {
                 try {
                     const supported = RTCRtpSender.getCapabilities('video')?.codecs?.some(
-                        c => c.mimeType.toLowerCase() === codec.mimeType.toLowerCase()
+                        c => codec.regex ? codec.regex.test(c.mimeType) : c.mimeType.toLowerCase() === codec.mimeType.toLowerCase()
                     ) || false;
                     videoCodecs.push({
                         ...codec,
@@ -134,6 +136,32 @@ class WebRTCDetector {
         }
 
         return this.capabilities.codecs;
+    }
+
+    // ============================================
+    // 2.5️⃣ 检测 HEVC (H.265) 播放能力
+    // ============================================
+
+    checkHEVCPlayback() {
+        // hev1 = 参数集 inband，hvc1 = 参数集 out-of-band，两种都测
+        const codecs = ['hev1.1.6.L93.B0', 'hvc1.1.6.L93.B0'];
+        let canPlay = false;
+        let mse = false;
+
+        // 1) canPlayType：video 标签播放能力
+        try {
+            const v = document.createElement('video');
+            canPlay = codecs.some(c => v.canPlayType('video/mp4; codecs="' + c + '"') !== '');
+        } catch (e) { /* ignore */ }
+
+        // 2) MediaSource.isTypeSupported：查询真实解码器，比 canPlayType 更可靠
+        try {
+            mse = typeof MediaSource !== 'undefined' &&
+                codecs.some(c => MediaSource.isTypeSupported('video/mp4; codecs="' + c + '"'));
+        } catch (e) { /* ignore */ }
+
+        this.capabilities.hevcPlayback = { canPlay, mse, supported: canPlay || mse };
+        return this.capabilities.hevcPlayback;
     }
 
     // ============================================
@@ -275,6 +303,7 @@ class WebRTCDetector {
         const results = {
             webRTC: this.checkWebRTCSupport(),
             codecs: this.checkCodecSupport(),
+            hevcPlayback: this.checkHEVCPlayback(),
             devices: await this.detectMediaDevices(),
             permissions: await this.checkPermissions(),
             timestamp: Date.now()
