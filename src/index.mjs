@@ -119,7 +119,7 @@ export default {
         case "api":
           return handleApiRequest(path.slice(1), request, env);
         default:
-          return new Response("Not found", { status: 404 });
+          return Response.json({ error: "Not found" }, { status: 404 });
       }
     });
   }
@@ -143,7 +143,7 @@ async function handleApiRequest(path, request, env) {
       if (request.method === "DELETE") return handleDeleteUpload(id, env);
       if (action === "meta") return handleFileMeta(id, env);
       if (action === "blob") return handleFileBlob(id, request, env);
-      return new Response("Not found", { status: 404 });
+      return Response.json({ error: "Not found" }, { status: 404 });
     }
 
     case "rooms": {
@@ -169,24 +169,24 @@ async function handleApiRequest(path, request, env) {
       // POST /api/register — create a user with a hashed password.
       // POST /api/register — 注册新用户，密码经 PBKDF2 哈希后入库。
       if (request.method !== "POST") {
-        return new Response("Method not allowed", { status: 405 });
+        return Response.json({ error: "Method not allowed" }, { status: 405 });
       }
       let body;
       try { body = await request.json(); } catch (e) {
-        return new Response("Invalid JSON", { status: 400 });
+        return Response.json({ error: "Invalid JSON" }, { status: 400 });
       }
       let name = (body.name || "").trim();
       let password = body.password || "";
       if (!name || name.length > 32) {
-        return new Response("Invalid name", { status: 400 });
+        return Response.json({ error: "Invalid name" }, { status: 400 });
       }
       if (!password || password.length < 6) {
-        return new Response("Password must be at least 6 characters", { status: 400 });
+        return Response.json({ error: "Password must be at least 6 characters" }, { status: 400 });
       }
       // 用户名查重
       let existing = await env.d1.prepare("SELECT id FROM chat_user WHERE username = ?").bind(name).first();
       if (existing) {
-        return new Response("Username already taken", { status: 409 });
+        return Response.json({ error: "Username already taken" }, { status: 409 });
       }
       // 密码哈希后入库，默认角色 user
       let passwordHash = await hashPassword(password);
@@ -200,26 +200,26 @@ async function handleApiRequest(path, request, env) {
       // POST /api/auth — verify username + password, then issue a JWT.
       // POST /api/auth — 校验用户名与密码，通过后签发 JWT。
       if (request.method !== "POST") {
-        return new Response("Method not allowed", { status: 405 });
+        return Response.json({ error: "Method not allowed" }, { status: 405 });
       }
       let body;
       try { body = await request.json(); } catch (e) {
-        return new Response("Invalid JSON", { status: 400 });
+        return Response.json({ error: "Invalid JSON" }, { status: 400 });
       }
       let name = (body.name || "").trim();
       let password = body.password || "";
       if (!name || name.length > 32) {
-        return new Response("Invalid name", { status: 400 });
+        return Response.json({ error: "Invalid name" }, { status: 400 });
       }
       if (!password) {
-        return new Response("Password required", { status: 400 });
+        return Response.json({ error: "Password required" }, { status: 400 });
       }
       // 查询用户并校验密码
       let user = await env.d1.prepare(
         "SELECT id, username, password_hash, roles FROM chat_user WHERE username = ?"
       ).bind(name).first();
       if (!user || !(await verifyPassword(password, user.password_hash))) {
-        return new Response("Invalid username or password", { status: 401 });
+        return Response.json({ error: "Invalid username or password" }, { status: 401 });
       }
       let token = await signToken(env, user.username, undefined, {
         uid: user.id,
@@ -259,7 +259,7 @@ async function handleApiRequest(path, request, env) {
           // inevitably some trolls would probably register a bunch of offensive room names. Sigh.
           // 不过在这个 Demo 中，我们没有实现公开房间列表，
           // 主要是考虑到总会有无聊的人注册一些冒犯性的房间名。唉。
-          return new Response("Method not allowed", { status: 405 });
+          return Response.json({ error: "Method not allowed" }, { status: 405 });
         }
       }
 
@@ -285,7 +285,7 @@ async function handleApiRequest(path, request, env) {
         // 作为字符串房间名处理（限制 32 个字符）。`idFromName()` 从字符串一致地派生出 ID。
         id = env.rooms.idFromName(name);
       } else {
-        return new Response("Name too long", { status: 404 });
+        return Response.json({ error: "Name too long" }, { status: 404 });
       }
 
       // Get the Durable Object stub for this room! The stub is a client object that can be used
@@ -340,16 +340,16 @@ async function handleApiRequest(path, request, env) {
         // 从查询参数中校验 JWT。
         let token = newUrl.searchParams.get("token");
         if (!token) {
-          return new Response("Missing token", { status: 401 });
+          return Response.json({ error: "Missing token" }, { status: 401 });
         }
         let payload;
         try {
           payload = await verifyToken(env, token);
         } catch (e) {
-          return new Response("Invalid or expired token", { status: 401 });
+          return Response.json({ error: "Invalid or expired token" }, { status: 401 });
         }
         if (!payload.sub) {
-          return new Response("Invalid token: missing subject", { status: 401 });
+          return Response.json({ error: "Invalid token: missing subject" }, { status: 401 });
         }
 
         // Forward the request with the verified username in a header.
@@ -364,6 +364,6 @@ async function handleApiRequest(path, request, env) {
     }
 
     default:
-      return new Response("Not found", { status: 404 });
+      return Response.json({ error: "Not found" }, { status: 404 });
   }
 }

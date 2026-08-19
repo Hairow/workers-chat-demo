@@ -322,8 +322,8 @@
                             body: JSON.stringify({ name: name, password: this.password })
                         });
                         if (!res.ok) {
-                            var err = await res.text();
-                            this.authError = err || '注册失败';
+                            var err = await res.json().catch(function () { return {}; });
+                            this.authError = err.error || '注册失败';
                             return;
                         }
                     } catch (e) {
@@ -350,8 +350,8 @@
                             body: JSON.stringify({ name: this.username, password: this.password })
                         });
                         if (!res.ok) {
-                            var err = await res.text();
-                            this.authError = err || '认证失败，请检查用户名后重试';
+                            var err = await res.json().catch(function () { return {}; });
+                            this.authError = err.error || '认证失败，请检查用户名后重试';
                             return;
                         }
                         var data = await res.json();
@@ -635,7 +635,7 @@
                         fd.append('file', file);
                         if (duration > 0) fd.append('duration', duration);
                         return fetch('/api/upload', { method: 'POST', body: fd }).then((r) => {
-                            if (!r.ok) return r.text().then((t) => { throw new Error(t); });
+                            if (!r.ok) return r.json().then((e) => { throw new Error(e.error || '上传失败'); });
                             return r.json();
                         }).then((result) => {
                             this.lastUpload = result;

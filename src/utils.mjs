@@ -23,7 +23,7 @@ export async function handleErrors(request, func) {
       pair[1].close(1011, "Uncaught exception during session setup");
       return new Response(null, { status: 101, webSocket: pair[0] });
     } else {
-      return new Response(err.stack || String(err), { status: 500 });
+      return Response.json({ error: err.stack || String(err) }, { status: 500 });
     }
   }
 }

@@ -14,30 +14,30 @@ function generateId() {
 /** Handle POST /api/upload — multipart file upload. */
 export async function handleUpload(request, env) {
   if (request.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
 
   let formData;
   try {
     formData = await request.formData();
   } catch {
-    return new Response("Invalid form data", { status: 400 });
+    return Response.json({ error: "Invalid form data" }, { status: 400 });
   }
 
   let file = formData.get("file");
   if (!file || typeof file === "string") {
-    return new Response("No file uploaded", { status: 400 });
+    return Response.json({ error: "No file uploaded" }, { status: 400 });
   }
 
   // Validate MIME type.
   let mimeType = file.type;
   if (!mimeType.startsWith("image/") && !mimeType.startsWith("video/") && !mimeType.startsWith("audio/")) {
-    return new Response("Only image, video, and audio files are allowed", { status: 400 });
+    return Response.json({ error: "Only image, video, and audio files are allowed" }, { status: 400 });
   }
 
   // Validate size.
   if (file.size > MAX_SIZE) {
-    return new Response("File too large (max 20 MB)", { status: 413 });
+    return Response.json({ error: "File too large (max 20 MB)" }, { status: 413 });
   }
 
   // Read file as ArrayBuffer.
@@ -78,7 +78,7 @@ export async function handleUpload(request, env) {
 
 /** Handle DELETE /api/file/<id> — delete upload record from D1. */
 export async function handleDeleteUpload(id, env) {
-  if (!id) return new Response("Missing id", { status: 400 });
+  if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
   await env.d1
     .prepare(`DELETE FROM chat_upload WHERE id = ?`)
@@ -102,28 +102,28 @@ async function getMetadata(id, env) {
 
 /** Handle GET /api/file/<id>/meta — return JSON metadata. */
 export async function handleFileMeta(id, env) {
-  if (!id) return new Response("Missing file id", { status: 400 });
+  if (!id) return Response.json({ error: "Missing file id" }, { status: 400 });
 
   let metadata = await getMetadata(id, env);
-  if (!metadata) return new Response("File not found", { status: 404 });
+  if (!metadata) return Response.json({ error: "File not found" }, { status: 404 });
 
   return Response.json(metadata);
 }
 
 /** Handle GET /api/file/<id>/blob — serve the binary file content. */
 export async function handleFileBlob(id, request, env) {
-  if (!id) return new Response("Missing file id", { status: 400 });
+  if (!id) return Response.json({ error: "Missing file id" }, { status: 400 });
 
   let row = await env.d1
     .prepare(`SELECT mime_type AS mimeType, filename, content FROM chat_upload WHERE id = ?`)
     .bind(id)
     .first();
-  if (!row) return new Response("File not found", { status: 404 });
+  if (!row) return Response.json({ error: "File not found" }, { status: 404 });
 
   // D1 BLOB 列读取返回 ArrayBuffer，转成 Uint8Array 以便 subarray 切片（Range 请求）
   let content = new Uint8Array(row.content);
   if (!content || content.byteLength === 0) {
-    return new Response("File content not found", { status: 404 });
+    return Response.json({ error: "File content not found" }, { status: 404 });
   }
   let total = content.byteLength;
 
@@ -138,7 +138,7 @@ export async function handleFileBlob(id, request, env) {
       end = Math.min(end, total - 1);
 
       if (start < 0 || start >= total || end < start) {
-        return new Response("Range Not Satisfiable", {
+        return Response.json({ error: "Range Not Satisfiable" }, {
           status: 416,
           headers: { "Content-Range": `bytes */${total}` },
         });
