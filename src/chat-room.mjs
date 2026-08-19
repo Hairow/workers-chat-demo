@@ -5,6 +5,9 @@
 import { handleErrors } from "./utils.mjs";
 import { RateLimiterClient } from "./rate-limiter.mjs";
 
+// 空房间归档检查周期：10 小时
+const ARCHIVE_INTERVAL_MS = 10 * 60 * 60 * 1000;
+
 // ChatRoom implements a Durable Object that coordinates an individual chat room. Participants
 // connect to the room using WebSockets, and the room broadcasts messages from each participant
 // to all others.
@@ -146,6 +149,9 @@ export class ChatRoom {
     // WebSocket in JavaScript, not sending it elsewhere.
     // 接受 WebSocket 的服务端。这告诉运行时我们会在 JavaScript 中处理 WebSocket，而不是转发到其他地方。
     this.state.acceptWebSocket(webSocket);
+
+    // 确保归档检查定时器已排程（每个 DO 实例首次激活时生效）
+    await this.ensureArchiveAlarm();
 
     // Set up our rate limiter client.
     // 设置限流客户端。
@@ -419,19 +425,54 @@ export class ChatRoom {
 
     // Save message.
     // 保存消息。
+    // 历史消息不再按条清理，统一由 alarm() 在空房间时归档到 D1 后整体清空。
     let key = new Date(data.timestamp).toISOString();
     await this.storage.put(key, dataStr);
+  }
 
-    // Keep only the last 100 messages (check every 100 messages to avoid blocking).
-    // 只保留最近 100 条消息（每 100 条检查一次，减少阻塞）。
-    this._msgCount = (this._msgCount || 0) + 1;
-    if (this._msgCount % 100 === 0) {
-      let allKeys = [...(await this.storage.list()).keys()];
-      if (allKeys.length > 100) {
-        let keysToDelete = allKeys.sort().slice(0, allKeys.length - 100);
-        await Promise.all(keysToDelete.map(k => this.storage.delete(k)));
-      }
+  // 确保归档检查定时器已排程（若还没有则排一个）
+  async ensureArchiveAlarm() {
+    const existing = await this.storage.getAlarm();
+    if (!existing) {
+      await this.storage.setAlarm(Date.now() + ARCHIVE_INTERVAL_MS);
     }
+  }
+
+  // 每 10 小时被唤醒一次：空房间则归档并清空消息
+  async alarm() {
+    try {
+      // 房间还有人（含连接未完全关闭的）→ 本次跳过，不归档
+      if (this.state.getWebSockets().length > 0 || this.sessions.size > 0) {
+        return;
+      }
+
+      // 房间无人：读取全部历史消息
+      let list = await this.storage.list();
+      if (list.size === 0) return; // 没有消息可归档
+
+      // 归档到 D1
+      let messages = [];
+      for (let [key, value] of list) {
+        messages.push({ key, value });
+      }
+      await this.archiveMessages(messages);
+
+      // 归档成功后清空 DO 存储
+      await this.storage.deleteAll();
+    } finally {
+      // 无论是否归档，都排下一个周期（deleteAll 可能清除 alarm，必须在 finally 里重排）
+      await this.storage.setAlarm(Date.now() + ARCHIVE_INTERVAL_MS);
+    }
+  }
+
+  // 将消息批量写入 D1 归档表
+  async archiveMessages(messages) {
+    const roomId = this.state.id.toString();
+    const batchId = new Date().toISOString();
+    await this.env.d1
+      .prepare(`INSERT INTO chat_archive (room_id, batch_id, messages, archived_at) VALUES (?, ?, ?, ?)`)
+      .bind(roomId, batchId, JSON.stringify(messages), Date.now())
+      .run();
   }
 
   // On "close" and "error" events, remove the WebSocket from the sessions list and broadcast

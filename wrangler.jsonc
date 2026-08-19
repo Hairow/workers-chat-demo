@@ -16,6 +16,15 @@
       "id": "d0af9fee83df43d4a06ab52ed22d372f"
     }
   ],
+  // D1 归档数据库：先在 Dashboard 创建或 wrangler d1 create，再把 database_id 填进来
+  "d1_databases": [
+    {
+      "binding": "d1", // Worker 代码里的绑定名
+      "database_name": "my-db-name", // 数据库名称
+      "database_id": "8578136b-3a1d-4543-b12c-88136633fe53", // 创建后替换为实际 ID
+      "migrations_dir": "migrations" // D1 迁移文件目录（区别于顶层的 DO migrations）
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {
