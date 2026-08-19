@@ -271,13 +271,25 @@ async function handleApiRequest(path, request, env) {
       // For WebSocket connections, verify JWT and attach the verified username.
       // 对 WebSocket 连接，校验 JWT 并附加已验证的用户名。
       if (path[2] === "create") {
-        // Store room name in KV when someone joins (i.e. room becomes active).
-        // 当有人通过 WebSocket 加入房间时，将房间名写入 KV。
+        // Store room info in KV when someone joins (i.e. room becomes active).
+        // 当有人通过 WebSocket 加入房间时，将房间信息写入 KV。
+        // Value 为 JSON 对象；仅当 key 不存在时新建，已存在则不覆盖（保留首次创建信息）。
         let hex = id.toString();
-        let key = name.match(/^[0-9a-f]{64}$/)
+        let isPrivate = !!name.match(/^[0-9a-f]{64}$/);
+        let key = isPrivate
           ? `room:${hex}`           // private: name is the 64-char hex ID
           : `room:${hex}-${name}`;  // public: store both id and name
-        env.CHAT_ROOMS.put(key, "1").catch(() => { });
+
+        let existing = await env.CHAT_ROOMS.get(key);
+        if (!existing) {
+          let roomInfo = {
+            id: hex,
+            name,
+            private: isPrivate,
+            createdAt: new Date().toISOString()
+          };
+          await env.CHAT_ROOMS.put(key, JSON.stringify(roomInfo));
+        }
 
         // Verify JWT token from query parameter.
         // 从查询参数中校验 JWT。
