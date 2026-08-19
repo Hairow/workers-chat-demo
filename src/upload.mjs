@@ -1,10 +1,9 @@
-// Upload handler — stores images / videos in KV.
-// 上传处理器 — 将图片/视频存储到 KV。
+// Upload handler — stores images / videos in D1.
+// 上传处理器 — 将图片/视频存储到 D1。
 //
-// Two records per upload:
-//   upload:<id> → JSON { type, mimeType, filename, contentKey, size, uploadedAt }
-//   blob:<id>   → ArrayBuffer (binary content)
-// 每条上传产生两条记录。
+// 每条上传在 D1 的 uploads 表中产生一条记录：
+//   chat_uploads(id, type, mime_type, filename, content BLOB, size, description, duration, uploaded_at)
+// 元数据与二进制内容合并在同一行。
 
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
 
@@ -44,10 +43,8 @@ export async function handleUpload(request, env) {
   // Read file as ArrayBuffer.
   let arrayBuffer = await file.arrayBuffer();
 
-  // Generate keys.
+  // Generate id.
   let id = generateId();
-  let metaKey = `upload:${id}`;
-  let blobKey = `blob:${id}`;
 
   // Determine type.
   let type = mimeType.startsWith("image/") ? "image"
@@ -62,42 +59,56 @@ export async function handleUpload(request, env) {
     type,
     mimeType,
     filename: file.name || "unnamed",
-    contentKey: blobKey,
     size: file.size,
     description: "",
     duration: type !== "image" ? duration : 0,
     uploadedAt: Date.now(),
   };
 
-  // Store both records in KV in parallel.
-  await Promise.all([
-    env.CHAT_ROOMS.put(metaKey, JSON.stringify(metadata)),
-    env.CHAT_ROOMS.put(blobKey, arrayBuffer),
-  ]);
+  // Store in D1 (content as BLOB, metadata columns alongside).
+  await env.d1
+    .prepare(
+      `INSERT INTO chat_uploads (id, type, mime_type, filename, content, size, description, duration, uploaded_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      id,
+      type,
+      mimeType,
+      metadata.filename,
+      new Uint8Array(arrayBuffer),
+      file.size,
+      "",
+      metadata.duration,
+      metadata.uploadedAt
+    )
+    .run();
 
   return Response.json({ id, type, mimeType, filename: file.name, size: file.size, duration });
 }
 
-/** Handle DELETE /api/file/<id> — delete upload metadata + blob from KV. */
+/** Handle DELETE /api/file/<id> — delete upload record from D1. */
 export async function handleDeleteUpload(id, env) {
   if (!id) return new Response("Missing id", { status: 400 });
 
-  // Delete both metadata and blob records.
-  let metaKey = `upload:${id}`;
-  let blobKey = `blob:${id}`;
-  await Promise.all([
-    env.CHAT_ROOMS.delete(metaKey),
-    env.CHAT_ROOMS.delete(blobKey),
-  ]);
+  await env.d1
+    .prepare(`DELETE FROM chat_uploads WHERE id = ?`)
+    .bind(id)
+    .run();
 
   return Response.json({ success: true });
 }
 
 /** Shared helper — load upload metadata by id. */
 async function getMetadata(id, env) {
-  let metaStr = await env.CHAT_ROOMS.get(`upload:${id}`);
-  if (!metaStr) return null;
-  return JSON.parse(metaStr);
+  let row = await env.d1
+    .prepare(
+      `SELECT id, type, mime_type AS mimeType, filename, size, description, duration, uploaded_at AS uploadedAt
+       FROM chat_uploads WHERE id = ?`
+    )
+    .bind(id)
+    .first();
+  return row || null;
 }
 
 /** Handle GET /api/file/<id>/meta — return JSON metadata. */
@@ -114,16 +125,21 @@ export async function handleFileMeta(id, env) {
 export async function handleFileBlob(id, request, env) {
   if (!id) return new Response("Missing file id", { status: 400 });
 
-  let metadata = await getMetadata(id, env);
-  if (!metadata) return new Response("File not found", { status: 404 });
+  let row = await env.d1
+    .prepare(`SELECT mime_type AS mimeType, filename, content FROM chat_uploads WHERE id = ?`)
+    .bind(id)
+    .first();
+  if (!row) return new Response("File not found", { status: 404 });
 
-  let blobKey = metadata.contentKey;
-  let arrayBuffer = await env.CHAT_ROOMS.get(blobKey, { type: "arrayBuffer" });
-  if (!arrayBuffer) return new Response("File content not found", { status: 404 });
+  // D1 BLOB 列读取返回 ArrayBuffer，转成 Uint8Array 以便 subarray 切片（Range 请求）
+  let content = new Uint8Array(row.content);
+  if (!content || content.byteLength === 0) {
+    return new Response("File content not found", { status: 404 });
+  }
+  let total = content.byteLength;
 
   // Support range requests for video seeking.
   let rangeHeader = request.headers.get("Range");
-  let total = arrayBuffer.byteLength;
 
   if (rangeHeader) {
     let match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
@@ -139,11 +155,11 @@ export async function handleFileBlob(id, request, env) {
         });
       }
 
-      let sliced = arrayBuffer.slice(start, end + 1);
+      let sliced = content.subarray(start, end + 1);
       return new Response(sliced, {
         status: 206,
         headers: {
-          "Content-Type": metadata.mimeType,
+          "Content-Type": row.mimeType,
           "Content-Range": `bytes ${start}-${end}/${total}`,
           "Content-Length": sliced.byteLength.toString(),
           "Accept-Ranges": "bytes",
@@ -153,13 +169,13 @@ export async function handleFileBlob(id, request, env) {
     }
   }
 
-  return new Response(arrayBuffer, {
+  return new Response(content, {
     headers: {
-      "Content-Type": metadata.mimeType,
+      "Content-Type": row.mimeType,
       "Content-Length": total.toString(),
       "Accept-Ranges": "bytes",
       "Cache-Control": "public, max-age=31536000, immutable",
-      "Content-Disposition": `inline; filename="${metadata.filename}"`,
+      "Content-Disposition": `inline; filename="${row.filename}"`,
     },
   });
 }
