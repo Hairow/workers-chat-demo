@@ -5,8 +5,8 @@
 import { handleErrors } from "./utils.mjs";
 import { RateLimiterClient } from "./rate-limiter.mjs";
 
-// 空房间归档检查周期：10 小时
-const ARCHIVE_INTERVAL_MS = 10 * 60 * 60 * 1000;
+// 空房间归档检查周期：1 小时
+const ARCHIVE_INTERVAL_MS = 60 * 60 * 1000;
 
 // ChatRoom implements a Durable Object that coordinates an individual chat room. Participants
 // connect to the room using WebSockets, and the room broadcasts messages from each participant
