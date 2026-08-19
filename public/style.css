@@ -275,6 +275,32 @@ p {
     display: block;
 }
 
+.password-wrap {
+    position: relative;
+}
+
+.password-wrap .modal-input {
+    padding-right: 44px;
+}
+
+.eye-icon {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    opacity: .6;
+    transition: opacity var(--transition);
+}
+
+.eye-icon:hover {
+    opacity: 1;
+    color: var(--accent);
+}
+
 .auth-error {
     margin-top: 16px;
     padding: 10px 16px;

@@ -20,8 +20,16 @@
             </div>
             <input class="modal-input" v-model="username" placeholder="your name" maxlength="32" ref="nameInput"
                 autofocus @input="authError = ''">
-            <input class="modal-input" style="margin-top:10px;" type="password" v-model="password"
-                placeholder="password" maxlength="64" @input="authError = ''">
+            <div class="password-wrap" style="margin-top:10px;">
+                <input class="modal-input" :type="showPassword ? 'text' : 'password'" v-model="password"
+                    placeholder="password" maxlength="64" @input="authError = ''">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round"
+                    @mouseenter="showPassword = true" @mouseleave="showPassword = false">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </div>
             <button type="submit" class="login-btn" :title="authMode === 'login' ? '登录' : '注册'">
                 <svg v-if="authMode === 'login'" class="login-icon" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -219,6 +227,7 @@
                 step: 'name',        // 'name' | 'room' | 'chat'
                 username: '',
                 password: '',        // 登录密码
+                showPassword: false, // 眼睛图标 hover 时显示明文
                 authMode: 'login',   // 'login' | 'register'
                 authError: '',       // 认证失败提示
                 connStatus: '',       // WebSocket 连接状态: '' | 'connecting' | 'offline'
