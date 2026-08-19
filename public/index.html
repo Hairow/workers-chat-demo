@@ -18,15 +18,25 @@
                 <button type="button" class="auth-tab" :class="{ active: authMode === 'register' }"
                     @click="switchAuthMode('register')">注册</button>
             </div>
-            <div class="name-row">
-                <input class="modal-input" v-model="username" placeholder="your name" maxlength="32" ref="nameInput"
-                    autofocus @input="authError = ''">
-                <button type="submit" class="login-btn">{{ authMode === 'login' ? '登录' : '注册' }}</button>
-            </div>
-            <div class="name-row" style="margin-top:10px;">
-                <input class="modal-input" type="password" v-model="password" placeholder="password"
-                    maxlength="64" @input="authError = ''">
-            </div>
+            <input class="modal-input" v-model="username" placeholder="your name" maxlength="32" ref="nameInput"
+                autofocus @input="authError = ''">
+            <input class="modal-input" style="margin-top:10px;" type="password" v-model="password"
+                placeholder="password" maxlength="64" @input="authError = ''">
+            <button type="submit" class="login-btn" :title="authMode === 'login' ? '登录' : '注册'">
+                <svg v-if="authMode === 'login'" class="login-icon" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                    <polyline points="10 17 15 12 10 7"></polyline>
+                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                </svg>
+                <svg v-else class="login-icon" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <line x1="20" y1="8" x2="20" y2="14"></line>
+                    <line x1="23" y1="11" x2="17" y2="11"></line>
+                </svg>
+            </button>
             <p v-if="authError" class="auth-error">{{ authError }}</p>
             <p v-else
                 style="margin-top:20px;max-width:360px;padding:0 16px;text-align:center;font-size:13px;color:var(--text-secondary);line-height:1.6;">

@@ -218,9 +218,14 @@ p {
 
 .login-btn {
     height: 52px;
+    width: 260px;
     padding: 0 20px;
+    margin-top: 10px;
     font-size: 15px;
     font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-weight: 600;
     color: #fff;
     background: var(--accent);
@@ -264,6 +269,12 @@ p {
     background: var(--accent);
 }
 
+.login-icon {
+    width: 22px;
+    height: 22px;
+    display: block;
+}
+
 .auth-error {
     margin-top: 16px;
     padding: 10px 16px;
@@ -280,6 +291,10 @@ p {
 
 @media (max-width:500px) {
     .modal-input {
+        width: 220px;
+    }
+
+    .login-btn {
         width: 220px;
     }
 }
