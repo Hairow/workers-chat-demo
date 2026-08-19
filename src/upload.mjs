@@ -2,7 +2,7 @@
 // 上传处理器 — 将图片/视频存储到 D1。
 //
 // 每条上传在 D1 的 uploads 表中产生一条记录：
-//   chat_uploads(id, type, mime_type, filename, content BLOB, size, description, duration, uploaded_at)
+//   chat_upload(id, type, mime_type, filename, content BLOB, size, description, duration, uploaded_at)
 // 元数据与二进制内容合并在同一行。
 
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
@@ -57,7 +57,7 @@ export async function handleUpload(request, env) {
   // Store in D1 (content as BLOB, metadata columns alongside).
   await env.d1
     .prepare(
-      `INSERT INTO chat_uploads (id, type, mime_type, filename, content, size, description, duration, uploaded_at)
+      `INSERT INTO chat_upload (id, type, mime_type, filename, content, size, description, duration, uploaded_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
@@ -81,7 +81,7 @@ export async function handleDeleteUpload(id, env) {
   if (!id) return new Response("Missing id", { status: 400 });
 
   await env.d1
-    .prepare(`DELETE FROM chat_uploads WHERE id = ?`)
+    .prepare(`DELETE FROM chat_upload WHERE id = ?`)
     .bind(id)
     .run();
 
@@ -93,7 +93,7 @@ async function getMetadata(id, env) {
   let row = await env.d1
     .prepare(
       `SELECT id, type, mime_type AS mimeType, filename, size, description, duration, uploaded_at AS uploadedAt
-       FROM chat_uploads WHERE id = ?`
+       FROM chat_upload WHERE id = ?`
     )
     .bind(id)
     .first();
@@ -115,7 +115,7 @@ export async function handleFileBlob(id, request, env) {
   if (!id) return new Response("Missing file id", { status: 400 });
 
   let row = await env.d1
-    .prepare(`SELECT mime_type AS mimeType, filename, content FROM chat_uploads WHERE id = ?`)
+    .prepare(`SELECT mime_type AS mimeType, filename, content FROM chat_upload WHERE id = ?`)
     .bind(id)
     .first();
   if (!row) return new Response("File not found", { status: 404 });

@@ -1,6 +1,6 @@
 -- Migration 0002: 创建上传文件表
 -- 替代原 KV 方案（upload:<id> 元数据 + blob:<id> 二进制内容）
-CREATE TABLE IF NOT EXISTS chat_uploads (
+CREATE TABLE IF NOT EXISTS chat_upload (
   id TEXT PRIMARY KEY,          -- 上传 ID（UUID）
   type TEXT NOT NULL,           -- image / video / audio
   mime_type TEXT NOT NULL,      -- 原始 MIME 类型
@@ -13,5 +13,5 @@ CREATE TABLE IF NOT EXISTS chat_uploads (
 );
 
 -- 按类型/时间检索上传记录
-CREATE INDEX IF NOT EXISTS idx_chat_uploads_type_time
-  ON chat_uploads(type, uploaded_at);
+CREATE INDEX IF NOT EXISTS idx_chat_upload_type_time
+  ON chat_upload(type, uploaded_at);
