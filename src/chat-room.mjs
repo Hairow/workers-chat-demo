@@ -187,7 +187,7 @@ export class ChatRoom {
     // Load the last * messages from the chat history stored on disk, and send them to the
     // client.
     // 从磁盘加载最近 * 条聊天记录，发给客户端。
-    let storage = await this.storage.list({ reverse: true, limit: 1 });
+    let storage = await this.storage.list({ reverse: true, limit: 3 });
     let backlog = [...storage.values()];
     backlog.reverse();
     backlog.forEach(value => {
