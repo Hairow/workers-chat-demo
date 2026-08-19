@@ -79,7 +79,7 @@
 
 import { handleErrors } from "./utils.mjs";
 import { handleUpload, handleDeleteUpload, handleFileMeta, handleFileBlob } from "./upload.mjs";
-import { signToken, verifyToken } from "./auth.mjs";
+import { signToken, verifyToken, hashPassword, verifyPassword } from "./auth.mjs";
 
 // Re-export Durable Object classes so that Cloudflare can discover them.
 // 重新导出 Durable Object 类，以便 Cloudflare 可以发现它们。
@@ -165,9 +165,9 @@ async function handleApiRequest(path, request, env) {
       return Response.json(result);
     }
 
-    case "auth": {
-      // POST /api/auth — issue a JWT for the given username.
-      // POST /api/auth — 为指定用户名签发 JWT。
+    case "register": {
+      // POST /api/register — create a user with a hashed password.
+      // POST /api/register — 注册新用户，密码经 PBKDF2 哈希后入库。
       if (request.method !== "POST") {
         return new Response("Method not allowed", { status: 405 });
       }
@@ -176,11 +176,56 @@ async function handleApiRequest(path, request, env) {
         return new Response("Invalid JSON", { status: 400 });
       }
       let name = (body.name || "").trim();
+      let password = body.password || "";
       if (!name || name.length > 32) {
         return new Response("Invalid name", { status: 400 });
       }
-      let token = await signToken(env, name);
-      return Response.json({ token });
+      if (!password || password.length < 6) {
+        return new Response("Password must be at least 6 characters", { status: 400 });
+      }
+      // 用户名查重
+      let existing = await env.d1.prepare("SELECT id FROM chat_user WHERE username = ?").bind(name).first();
+      if (existing) {
+        return new Response("Username already taken", { status: 409 });
+      }
+      // 密码哈希后入库，默认角色 user
+      let passwordHash = await hashPassword(password);
+      await env.d1.prepare(
+        "INSERT INTO chat_user (username, password_hash, roles, created_at) VALUES (?, ?, ?, ?)"
+      ).bind(name, passwordHash, JSON.stringify(["user"]), Date.now()).run();
+      return Response.json({ ok: true, username: name });
+    }
+
+    case "auth": {
+      // POST /api/auth — verify username + password, then issue a JWT.
+      // POST /api/auth — 校验用户名与密码，通过后签发 JWT。
+      if (request.method !== "POST") {
+        return new Response("Method not allowed", { status: 405 });
+      }
+      let body;
+      try { body = await request.json(); } catch (e) {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+      let name = (body.name || "").trim();
+      let password = body.password || "";
+      if (!name || name.length > 32) {
+        return new Response("Invalid name", { status: 400 });
+      }
+      if (!password) {
+        return new Response("Password required", { status: 400 });
+      }
+      // 查询用户并校验密码
+      let user = await env.d1.prepare(
+        "SELECT id, username, password_hash, roles FROM chat_user WHERE username = ?"
+      ).bind(name).first();
+      if (!user || !(await verifyPassword(password, user.password_hash))) {
+        return new Response("Invalid username or password", { status: 401 });
+      }
+      let token = await signToken(env, user.username, undefined, {
+        uid: user.id,
+        roles: JSON.parse(user.roles || "[]"),
+      });
+      return Response.json({ token, uid: user.id, username: user.username, roles: JSON.parse(user.roles || "[]") });
     }
 
     case "room": {

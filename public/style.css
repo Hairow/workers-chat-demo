@@ -235,6 +235,35 @@ p {
     background: var(--accent-hover);
 }
 
+.auth-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding: 4px;
+    background: var(--bg-secondary, rgba(255, 255, 255, .06));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.auth-tab {
+    min-width: 88px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+}
+
+.auth-tab.active {
+    color: #fff;
+    background: var(--accent);
+}
+
 .auth-error {
     margin-top: 16px;
     padding: 10px 16px;

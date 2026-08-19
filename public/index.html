@@ -11,11 +11,21 @@
     <div id="app" v-cloak>
 
         <!-- ── Name Chooser ─────────────────────────── -->
-        <form v-if="step === 'name'" class="modal-overlay" action="/fake-form-action" @submit.prevent="confirmName">
+        <form v-if="step === 'name'" class="modal-overlay" action="/fake-form-action" @submit.prevent="submitAuth">
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab" :class="{ active: authMode === 'login' }"
+                    @click="switchAuthMode('login')">登录</button>
+                <button type="button" class="auth-tab" :class="{ active: authMode === 'register' }"
+                    @click="switchAuthMode('register')">注册</button>
+            </div>
             <div class="name-row">
                 <input class="modal-input" v-model="username" placeholder="your name" maxlength="32" ref="nameInput"
                     autofocus @input="authError = ''">
-                <button type="submit" class="login-btn">登录</button>
+                <button type="submit" class="login-btn">{{ authMode === 'login' ? '登录' : '注册' }}</button>
+            </div>
+            <div class="name-row" style="margin-top:10px;">
+                <input class="modal-input" type="password" v-model="password" placeholder="password"
+                    maxlength="64" @input="authError = ''">
             </div>
             <p v-if="authError" class="auth-error">{{ authError }}</p>
             <p v-else
@@ -198,6 +208,8 @@
             data: {
                 step: 'name',        // 'name' | 'room' | 'chat'
                 username: '',
+                password: '',        // 登录密码
+                authMode: 'login',   // 'login' | 'register'
                 authError: '',       // 认证失败提示
                 connStatus: '',       // WebSocket 连接状态: '' | 'connecting' | 'offline'
                 connRetries: 0,       // 重连次数
@@ -259,17 +271,64 @@
                     this.$nextTick(this.startChat);
                 },
 
+                switchAuthMode: function (mode) {
+                    this.authMode = mode;
+                    this.authError = '';
+                    this.password = '';
+                    this.$nextTick(function () {
+                        if (this.$refs.nameInput) this.$refs.nameInput.focus();
+                    });
+                },
+
+                submitAuth: function () {
+                    if (this.authMode === 'register') {
+                        this.register();
+                    } else {
+                        this.confirmName();
+                    }
+                },
+
+                register: async function () {
+                    var name = this.username.trim();
+                    if (!name) { this.authError = '请输入用户名'; return; }
+                    if (!this.password) { this.authError = '请输入密码'; return; }
+                    if (this.password.length < 6) { this.authError = '密码至少 6 位'; return; }
+
+                    // POST /api/register — create the account, then auto-login.
+                    // 调用注册接口创建账号，成功后自动登录。
+                    try {
+                        var res = await fetch('/api/register', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: name, password: this.password })
+                        });
+                        if (!res.ok) {
+                            var err = await res.text();
+                            this.authError = err || '注册失败';
+                            return;
+                        }
+                    } catch (e) {
+                        this.authError = '网络请求失败: ' + e.message;
+                        return;
+                    }
+
+                    // Auto-login with the credentials just registered.
+                    // 注册成功后自动登录。
+                    this.authMode = 'login';
+                    await this.confirmName();
+                },
+
                 confirmName: async function () {
-                    if (!this.username.trim()) return;
+                    if (!this.username.trim() || !this.password) return;
                     localStorage.setItem('chat-username', this.username);
 
-                    // Request a JWT from the auth endpoint.
-                    // 从认证端点请求 JWT。
+                    // Verify username + password, then request a JWT from the auth endpoint.
+                    // 校验用户名与密码，再从认证端点请求 JWT。
                     try {
                         var res = await fetch('/api/auth', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ name: this.username })
+                            body: JSON.stringify({ name: this.username, password: this.password })
                         });
                         if (!res.ok) {
                             var err = await res.text();
