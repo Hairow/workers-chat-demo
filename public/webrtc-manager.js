@@ -2,15 +2,15 @@
 // 注意：webrtc-detect.js 通过 <script> 加载，webrtcDetector 为全局变量
 
 class WebRTCManager {
-    constructor(ws, userId, callbacks) {
+    constructor(ws, userChatId, callbacks) {
         this.ws = ws;
-        this.userId = userId;
+        this.userChatId = userChatId;
         this.pc = null;
         this.localStream = null;
         this.remoteStream = null;
         this.isCalling = false;       // true = 主叫方已发出呼叫（等待或已建立）
-        this.calleeUserId = null;     // 主叫方记录被叫方 userId
-        this.pendingCallFrom = null;  // 被叫方记录主叫方 userId
+        this.calleeUserId = null;     // 主叫方记录被叫方 userChatId
+        this.pendingCallFrom = null;  // 被叫方记录主叫方 userChatId
         this.callbacks = callbacks || {};  // 回调：onCallStateChange(active), onStatus(msg)
         this.pendingIceCandidates = [];  // 收到的 ICE 候选队列（setRemoteDescription 前暂存）
         this.currentCallId = null;    // 当前通话 ID，用于 ICE 信令
@@ -165,7 +165,7 @@ class WebRTCManager {
                 this.pc.addTrack(track, this.localStream);
             });
 
-            // 记录主叫方 userId，等收到 Offer 后再处理
+            // 记录主叫方 userChatId，等收到 Offer 后再处理
             this.pendingCallFrom = fromUserId;
             this.isCalling = false;  // 被叫方不置 isCalling=true，由 handleOffer 后决定
             this.currentCallId = callId;

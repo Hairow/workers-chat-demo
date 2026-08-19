@@ -388,9 +388,9 @@
                             this.addSysMsg('* Error: ' + data.error);
                         } else if (data.joined) {
                             this.roster = this.roster.filter(u => u.name !== data.joined);
-                            this.roster.push({ name: data.joined, ip: data.ip || '', userId: data.userId });
+                            this.roster.push({ name: data.joined, ip: data.ip || '', userChatId: data.userChatId });
                         } else if (data.quit) {
-                            this.roster = this.roster.filter(u => u.userId !== data.userId);
+                            this.roster = this.roster.filter(u => u.userChatId !== data.userChatId);
                         } else if (data.ready) {
                             if (!this.wroteWelcome) {
                                 this.wroteWelcome = true;
@@ -583,7 +583,7 @@
                 // ── WebRTC 通话 ─────────────────────────
                 callUser: function (user) {
                     if (!this.webrtcManager || this.inCall) return;
-                    this.webrtcManager.startCallUser(user.userId);
+                    this.webrtcManager.startCallUser(user.userChatId);
                 },
                 hangupCall: function () {
                     if (this.webrtcManager) {
@@ -604,7 +604,7 @@
                     var fi = this.$refs.transferFileInput;
                     var file = fi && fi.files[0];
                     if (!file) return;
-                    this.fileDataManager.sendFile(user.userId, file);
+                    this.fileDataManager.sendFile(user.userChatId, file);
                     this._pendingTransferUser = null;
                 },
                 acceptFile: function (fileId) {

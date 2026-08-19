@@ -2,9 +2,9 @@
 // WebRTC 点对点文件传输管理器，基于 DataChannel 实现分片传输
 
 class WebRTCDataManager {
-    constructor(ws, userId, callbacks) {
+    constructor(ws, userChatId, callbacks) {
         this.ws = ws;
-        this.userId = userId;
+        this.userChatId = userChatId;
         this.callbacks = callbacks || {};  // onTransferUpdate(transfer), onIncomingFile(file), onError(msg)
 
         this.CHUNK_SIZE = 60 * 1024;  // 64KB 分片
