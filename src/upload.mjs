@@ -54,17 +54,6 @@ export async function handleUpload(request, env) {
   // Optional duration (seconds) — only meaningful for audio / video.
   let duration = parseFloat(formData.get("duration")) || 0;
 
-  // Build metadata JSON.
-  let metadata = {
-    type,
-    mimeType,
-    filename: file.name || "unnamed",
-    size: file.size,
-    description: "",
-    duration: type !== "image" ? duration : 0,
-    uploadedAt: Date.now(),
-  };
-
   // Store in D1 (content as BLOB, metadata columns alongside).
   await env.d1
     .prepare(
@@ -75,12 +64,12 @@ export async function handleUpload(request, env) {
       id,
       type,
       mimeType,
-      metadata.filename,
+      file.name || "unnamed",
       new Uint8Array(arrayBuffer),
       file.size,
       "",
-      metadata.duration,
-      metadata.uploadedAt
+      type !== "image" ? duration : 0,
+      Date.now()
     )
     .run();
 
