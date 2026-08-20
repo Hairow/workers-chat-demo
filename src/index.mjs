@@ -184,15 +184,20 @@ async function handleApiRequest(path, request, env) {
         return Response.json({ error: "Password must be at least 6 characters" }, { status: 400 });
       }
       // 用户名查重
-      let existing = await env.d1.prepare("SELECT id FROM chat_user WHERE username = ?").bind(name).first();
+      let existing = await env.d1
+        .prepare("SELECT id FROM chat_user WHERE username = ?")
+        .bind(name)
+        .first();
       if (existing) {
         return Response.json({ error: "Username already taken" }, { status: 409 });
       }
       // 密码哈希后入库，默认角色 user
       let passwordHash = await hashPassword(password);
-      await env.d1.prepare(
-        "INSERT INTO chat_user (username, password_hash, roles, created_at) VALUES (?, ?, ?, ?)"
-      ).bind(name, passwordHash, JSON.stringify(["user"]), Date.now()).run();
+      await env.d1
+        .prepare(
+          "INSERT INTO chat_user (username, password_hash, roles, created_at) VALUES (?, ?, ?, ?)"
+        ).bind(name, passwordHash, JSON.stringify(["user"]), Date.now())
+        .run();
       return Response.json({ ok: true, username: name });
     }
 
