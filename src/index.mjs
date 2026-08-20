@@ -310,8 +310,25 @@ async function handleApiRequest(path, request, env) {
       // same signature as the global `fetch()` function, but the request is always sent to the
       // object, regardless of the request's URL.
       // 将请求发送给该对象。Durable Object stub 的 `fetch()` 方法和全局 `fetch()` 函数签名相同，
-      // 但请求总是发送给该对象，与请求的 URL 无关。 
+      // 但请求总是发送给该对象，与请求的 URL 无关。
       // 真正的聊天室是在fetch第一次被调用时，Cloudflare 才在全球边缘节点上启动一个 ChatRoom 实例
+
+
+      // Verify JWT token from query parameter.
+      // 从查询参数中校验 JWT。
+      let token = newUrl.searchParams.get("token");
+      if (!token) {
+        return Response.json({ error: "Missing token" }, { status: 401 });
+      }
+      let payload;
+      try {
+        payload = await verifyToken(env, token);
+      } catch (e) {
+        return Response.json({ error: "Invalid or expired token" }, { status: 401 });
+      }
+      if (!payload.sub) {
+        return Response.json({ error: "Invalid token: missing subject" }, { status: 401 });
+      }
 
       // For WebSocket connections, verify JWT and attach the verified username.
       // 对 WebSocket 连接，校验 JWT 并附加已验证的用户名。
@@ -336,31 +353,26 @@ async function handleApiRequest(path, request, env) {
           await env.CHAT_ROOMS.put(key, JSON.stringify(roomInfo));
         }
 
-        // Verify JWT token from query parameter.
-        // 从查询参数中校验 JWT。
-        let token = newUrl.searchParams.get("token");
-        if (!token) {
-          return Response.json({ error: "Missing token" }, { status: 401 });
-        }
-        let payload;
-        try {
-          payload = await verifyToken(env, token);
-        } catch (e) {
-          return Response.json({ error: "Invalid or expired token" }, { status: 401 });
-        }
-        if (!payload.sub) {
-          return Response.json({ error: "Invalid token: missing subject" }, { status: 401 });
-        }
-
         // Forward the request with the verified username in a header.
         // 将请求转发给 DO，并附加已验证的用户名到头中。
         let verifiedRequest = new Request(newUrl, request);
         verifiedRequest.headers.set("X-Verified-Name", payload.sub);
-        console.debug('before room fetch')
         return roomObject.fetch(newUrl, verifiedRequest);
+      } else if (path[2] === 'delete') {
+        // Only users with the 'admin' role may delete rooms.
+        // 仅拥有 admin 角色的用户可删除房间。
+        let roles = payload.roles || [];
+        if (!roles.includes('admin')) {
+          return Response.json({ error: "Forbidden: admin role required" }, { status: 403 });
+        }
+        // Forward the request with the verified username in a header.
+        // 将请求转发给 DO，并附加已验证的用户名到头中。
+        let verifiedRequest = new Request(newUrl, request);
+        verifiedRequest.headers.set("X-Verified-Name", payload.sub);
+        return roomObject.fetch(newUrl, verifiedRequest);
+      } else {
+        return Response.json({ error: "Not found" }, { status: 404 });
       }
-
-      return roomObject.fetch(newUrl, request);
     }
 
     default:

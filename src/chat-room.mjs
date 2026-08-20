@@ -82,9 +82,10 @@ export class ChatRoom {
       let url = new URL(request.url);
 
       switch (url.pathname) {
-        case "/": {
-          // DELETE /api/room/<name> — delete the room and all its data.
-          if (request.method === "DELETE") {
+        case "/delete": {
+          // POST /api/room/<name>/delete — delete the room and all its data.
+          // POST /api/room/<name>/delete — 删除房间及其所有数据。
+          if (request.method === "POST") {
             // Notify all connected users that the room is being deleted.
             this.broadcast({ quit: "Room deleted by admin." });
             // Close all WebSocket connections.
