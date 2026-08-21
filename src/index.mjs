@@ -79,8 +79,8 @@
 
 import { handleErrors } from "./utils.mjs";
 import { handleUpload, handleDeleteUpload, handleFileMeta, handleFileBlob } from "./upload.mjs";
-import { signToken, verifyToken } from "./auth.mjs";
-import { handleRegister, handleAuth } from "./user-handlers.mjs";
+import { verifyToken } from "./auth.mjs";
+import { handleRegister, handleAuth } from "./user.mjs";
 
 // Re-export Durable Object classes so that Cloudflare can discover them.
 // 重新导出 Durable Object 类，以便 Cloudflare 可以发现它们。
