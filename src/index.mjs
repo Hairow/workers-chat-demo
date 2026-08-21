@@ -80,6 +80,7 @@
 import { handleErrors } from "./utils.mjs";
 import { handleUpload, handleDeleteUpload, handleFileMeta, handleFileBlob } from "./upload.mjs";
 import { signToken, verifyToken, hashPassword, verifyPassword } from "./auth.mjs";
+import { SQL_USER_FIND_BY_NAME, SQL_USER_INSERT, SQL_USER_FIND_WITH_CREDENTIALS } from "./sql.mjs";
 
 // Re-export Durable Object classes so that Cloudflare can discover them.
 // 重新导出 Durable Object 类，以便 Cloudflare 可以发现它们。
@@ -185,7 +186,7 @@ async function handleApiRequest(path, request, env) {
       }
       // 用户名查重
       let existing = await env.d1
-        .prepare("SELECT id FROM chat_user WHERE username = ?")
+        .prepare(SQL_USER_FIND_BY_NAME)
         .bind(name)
         .first();
       if (existing) {
@@ -194,9 +195,8 @@ async function handleApiRequest(path, request, env) {
       // 密码哈希后入库，默认角色 user
       let passwordHash = await hashPassword(password);
       await env.d1
-        .prepare(
-          "INSERT INTO chat_user (username, password_hash, roles, created_at) VALUES (?, ?, ?, ?)"
-        ).bind(name, passwordHash, JSON.stringify(["user"]), Date.now())
+        .prepare(SQL_USER_INSERT)
+        .bind(name, passwordHash, JSON.stringify(["user"]), Date.now())
         .run();
       return Response.json({ ok: true, username: name });
     }
@@ -220,9 +220,7 @@ async function handleApiRequest(path, request, env) {
         return Response.json({ error: "Password required" }, { status: 400 });
       }
       // 查询用户并校验密码
-      let user = await env.d1.prepare(
-        "SELECT id, username, password_hash, roles FROM chat_user WHERE username = ?"
-      ).bind(name).first();
+      let user = await env.d1.prepare(SQL_USER_FIND_WITH_CREDENTIALS).bind(name).first();
       if (!user || !(await verifyPassword(password, user.password_hash))) {
         return Response.json({ error: "Invalid username or password" }, { status: 401 });
       }

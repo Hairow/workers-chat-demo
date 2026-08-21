@@ -4,6 +4,14 @@
 // 每条上传在 D1 的 uploads 表中产生一条记录：
 //   chat_upload(id, type, mime_type, filename, content BLOB, size, description, duration, uploaded_at)
 // 元数据与二进制内容合并在同一行。
+// SQL 语句集中定义在 ./sql.mjs
+
+import {
+  SQL_UPLOAD_INSERT,
+  SQL_UPLOAD_DELETE,
+  SQL_UPLOAD_META,
+  SQL_UPLOAD_BLOB,
+} from "./sql.mjs";
 
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
 
@@ -56,10 +64,7 @@ export async function handleUpload(request, env) {
 
   // Store in D1 (content as BLOB, metadata columns alongside).
   await env.d1
-    .prepare(
-      `INSERT INTO chat_upload (id, type, mime_type, filename, content, size, description, duration, uploaded_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
+    .prepare(SQL_UPLOAD_INSERT)
     .bind(
       id,
       type,
@@ -81,7 +86,7 @@ export async function handleDeleteUpload(id, env) {
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
   await env.d1
-    .prepare(`DELETE FROM chat_upload WHERE id = ?`)
+    .prepare(SQL_UPLOAD_DELETE)
     .bind(id)
     .run();
 
@@ -91,10 +96,7 @@ export async function handleDeleteUpload(id, env) {
 /** Shared helper — load upload metadata by id. */
 async function getMetadata(id, env) {
   let row = await env.d1
-    .prepare(
-      `SELECT id, type, mime_type AS mimeType, filename, size, description, duration, uploaded_at AS uploadedAt
-       FROM chat_upload WHERE id = ?`
-    )
+    .prepare(SQL_UPLOAD_META)
     .bind(id)
     .first();
   return row || null;
@@ -115,7 +117,7 @@ export async function handleFileBlob(id, request, env) {
   if (!id) return Response.json({ error: "Missing file id" }, { status: 400 });
 
   let row = await env.d1
-    .prepare(`SELECT mime_type AS mimeType, filename, content FROM chat_upload WHERE id = ?`)
+    .prepare(SQL_UPLOAD_BLOB)
     .bind(id)
     .first();
   if (!row) return Response.json({ error: "File not found" }, { status: 404 });

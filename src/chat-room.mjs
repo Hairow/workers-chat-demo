@@ -4,6 +4,7 @@
 
 import { handleErrors } from "./utils.mjs";
 import { RateLimiterClient } from "./rate-limiter.mjs";
+import { SQL_ARCHIVE_INSERT } from "./sql.mjs";
 
 // 空房间归档检查周期：1 小时
 const ARCHIVE_INTERVAL_MS = 60 * 60 * 1000;
@@ -471,7 +472,7 @@ export class ChatRoom {
     const roomId = this.state.id.toString();
     const batchId = new Date().toISOString();
     await this.env.d1
-      .prepare(`INSERT INTO chat_archive (room_id, batch_id, messages, archived_at) VALUES (?, ?, ?, ?)`)
+      .prepare(SQL_ARCHIVE_INSERT)
       .bind(roomId, batchId, JSON.stringify(messages), Date.now())
       .run();
   }
