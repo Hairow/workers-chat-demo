@@ -179,7 +179,14 @@ export class ChatRoom {
 
     // attach limiterId, name, ip, userChatId to the webSocket so they survive hibernation
     // 将 limiterId、ip、name、userChatId 附加到 webSocket，使其在休眠时也能保留
-    webSocket.serializeAttachment({ ...webSocket.deserializeAttachment(), limiterId: limiterId.toString(), ip, name: session.name, userChatId: session.userChatId });
+    let meta = webSocket.deserializeAttachment()
+    webSocket.serializeAttachment({
+      ...meta,
+      limiterId: limiterId.toString(),
+      ip,
+      name: session.name,
+      userChatId: session.userChatId
+    });
     this.sessions.set(webSocket, session);
 
     // Queue "join" messages for all OTHER online users, to populate the client's roster.
