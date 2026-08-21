@@ -126,6 +126,75 @@ export default {
   }
 }
 
+/**
+ * Handle POST /api/register — create a user with a hashed password.
+ * 处理 POST /api/register — 注册新用户，密码经 PBKDF2 哈希后入库。
+ */
+async function handleRegister(request, env) {
+  if (request.method !== "POST") {
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
+  }
+  let body;
+  try { body = await request.json(); } catch (e) {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  let name = (body.name || "").trim();
+  let password = body.password || "";
+  if (!name || name.length > 32) {
+    return Response.json({ error: "Invalid name" }, { status: 400 });
+  }
+  if (!password || password.length < 6) {
+    return Response.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+  }
+  // 用户名查重
+  let existing = await env.d1
+    .prepare(SQL_USER_FIND_BY_NAME)
+    .bind(name)
+    .first();
+  if (existing) {
+    return Response.json({ error: "Username already taken" }, { status: 409 });
+  }
+  // 密码哈希后入库，默认角色 user
+  let passwordHash = await hashPassword(password);
+  await env.d1
+    .prepare(SQL_USER_INSERT)
+    .bind(name, passwordHash, JSON.stringify(["user"]), Date.now())
+    .run();
+  return Response.json({ ok: true, username: name });
+}
+
+/**
+ * Handle POST /api/auth — verify username + password, then issue a JWT.
+ * 处理 POST /api/auth — 校验用户名与密码，通过后签发 JWT。
+ */
+async function handleAuth(request, env) {
+  if (request.method !== "POST") {
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
+  }
+  let body;
+  try { body = await request.json(); } catch (e) {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  let name = (body.name || "").trim();
+  let password = body.password || "";
+  if (!name || name.length > 32) {
+    return Response.json({ error: "Invalid name" }, { status: 400 });
+  }
+  if (!password) {
+    return Response.json({ error: "Password required" }, { status: 400 });
+  }
+  // 查询用户并校验密码
+  let user = await env.d1.prepare(SQL_USER_FIND_WITH_CREDENTIALS).bind(name).first();
+  if (!user || !(await verifyPassword(password, user.password_hash))) {
+    return Response.json({ error: "Invalid username or password" }, { status: 401 });
+  }
+  let token = await signToken(env, user.username, undefined, {
+    uid: user.id,
+    roles: JSON.parse(user.roles || "[]"),
+  });
+  return Response.json({ token, uid: user.id, username: user.username, roles: JSON.parse(user.roles || "[]") });
+}
+
 async function handleApiRequest(path, request, env) {
   // We've received at API request. Route the request based on the path.
   // 收到 API 请求。根据路径路由请求。
@@ -166,70 +235,13 @@ async function handleApiRequest(path, request, env) {
       return Response.json(result);
     }
 
-    case "register": {
-      // POST /api/register — create a user with a hashed password.
-      // POST /api/register — 注册新用户，密码经 PBKDF2 哈希后入库。
-      if (request.method !== "POST") {
-        return Response.json({ error: "Method not allowed" }, { status: 405 });
-      }
-      let body;
-      try { body = await request.json(); } catch (e) {
-        return Response.json({ error: "Invalid JSON" }, { status: 400 });
-      }
-      let name = (body.name || "").trim();
-      let password = body.password || "";
-      if (!name || name.length > 32) {
-        return Response.json({ error: "Invalid name" }, { status: 400 });
-      }
-      if (!password || password.length < 6) {
-        return Response.json({ error: "Password must be at least 6 characters" }, { status: 400 });
-      }
-      // 用户名查重
-      let existing = await env.d1
-        .prepare(SQL_USER_FIND_BY_NAME)
-        .bind(name)
-        .first();
-      if (existing) {
-        return Response.json({ error: "Username already taken" }, { status: 409 });
-      }
-      // 密码哈希后入库，默认角色 user
-      let passwordHash = await hashPassword(password);
-      await env.d1
-        .prepare(SQL_USER_INSERT)
-        .bind(name, passwordHash, JSON.stringify(["user"]), Date.now())
-        .run();
-      return Response.json({ ok: true, username: name });
-    }
+    case "register":
+      // POST /api/register
+      return handleRegister(request, env);
 
-    case "auth": {
-      // POST /api/auth — verify username + password, then issue a JWT.
-      // POST /api/auth — 校验用户名与密码，通过后签发 JWT。
-      if (request.method !== "POST") {
-        return Response.json({ error: "Method not allowed" }, { status: 405 });
-      }
-      let body;
-      try { body = await request.json(); } catch (e) {
-        return Response.json({ error: "Invalid JSON" }, { status: 400 });
-      }
-      let name = (body.name || "").trim();
-      let password = body.password || "";
-      if (!name || name.length > 32) {
-        return Response.json({ error: "Invalid name" }, { status: 400 });
-      }
-      if (!password) {
-        return Response.json({ error: "Password required" }, { status: 400 });
-      }
-      // 查询用户并校验密码
-      let user = await env.d1.prepare(SQL_USER_FIND_WITH_CREDENTIALS).bind(name).first();
-      if (!user || !(await verifyPassword(password, user.password_hash))) {
-        return Response.json({ error: "Invalid username or password" }, { status: 401 });
-      }
-      let token = await signToken(env, user.username, undefined, {
-        uid: user.id,
-        roles: JSON.parse(user.roles || "[]"),
-      });
-      return Response.json({ token, uid: user.id, username: user.username, roles: JSON.parse(user.roles || "[]") });
-    }
+    case "auth":
+      // POST /api/auth
+      return handleAuth(request, env);
 
     case "room": {
       // Request for `/api/room/...`.
