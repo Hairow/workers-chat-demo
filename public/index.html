@@ -385,7 +385,7 @@
                 join: function () {
                     this.connStatus = 'connecting';
                     var ws = new WebSocket(
-                        '/api/room/' + this.roomname + '/create?token=' + encodeURIComponent(this.authToken)
+                        '/api/room/' + this.roomname + '/websocket?token=' + encodeURIComponent(this.authToken)
                     );
                     var startTime = Date.now();
 

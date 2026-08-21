@@ -347,7 +347,7 @@ async function handleApiRequest(path, request, env) {
 
       // For WebSocket connections, verify JWT and attach the verified username.
       // 对 WebSocket 连接，校验 JWT 并附加已验证的用户名。
-      if (path[2] === "create") {
+      if (path[2] === "websocket") {
         // Store room info in KV when someone joins (i.e. room becomes active).
         // 当有人通过 WebSocket 加入房间时，将房间信息写入 KV。
         // Value 为 JSON 对象；仅当 key 不存在时新建，已存在则不覆盖（保留首次创建信息）。

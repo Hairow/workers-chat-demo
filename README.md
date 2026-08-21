@@ -211,7 +211,7 @@ wrangler secret put JWT_SECRET
 |------|------|------|
 | `/api/register` | POST | 注册用户（`{ name, password }`，密码至少 6 位，PBKDF2 哈希入库） |
 | `/api/auth` | POST | 登录，校验用户名 + 密码后签发 JWT |
-| `/api/room/<name>/create?token=...` | GET | WebSocket 连接，加入聊天室（需 JWT） |
+| `/api/room/<name>/websocket?token=...` | GET | WebSocket 连接，加入聊天室（需 JWT） |
 | `/api/room/<name>/delete?token=...` | POST | 删除房间（需 `admin` 角色） |
 | `/api/room` | POST | 创建私密房间，返回 64 位随机 ID |
 | `/api/rooms` | GET | 获取活跃房间列表 |

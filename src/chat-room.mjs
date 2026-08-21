@@ -99,10 +99,10 @@ export class ChatRoom {
           return Response.json({ error: "Method not allowed" }, { status: 405 });
         }
 
-        case "/create": {
-          // The request is to `/api/room/<name>/create`. A client is trying to establish a new
+        case "/websocket": {
+          // The request is to `/api/room/<name>/websocket`. A client is trying to establish a new
           // WebSocket session.
-          // 请求是 `/api/room/<name>/create`。客户端正在尝试建立新的 WebSocket 会话。
+          // 请求是 `/api/room/<name>/websocket`。客户端正在尝试建立新的 WebSocket 会话。
           if (request.headers.get("Upgrade") != "websocket") {
             return Response.json({ error: "expected websocket" }, { status: 400 });
           }
