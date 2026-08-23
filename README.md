@@ -118,25 +118,30 @@
 
 ```
 ├── src/
-│   ├── index.mjs          # Worker 入口，API 路由与 DO 调度
-│   ├── chat-room.mjs       # ChatRoom Durable Object（聊天室核心）
-│   ├── rate-limiter.mjs    # RateLimiter Durable Object（限流）
-│   ├── auth.mjs            # JWT 签发/校验 + PBKDF2 密码哈希
-│   ├── upload.mjs          # 文件上传处理（D1 存储）
-│   └── utils.mjs           # 工具函数
+│   ├── index.mjs            # Worker 入口，API 路由与 DO 调度
+│   ├── chat-room.mjs        # ChatRoom Durable Object（聊天室核心）
+│   ├── rate-limiter.mjs     # RateLimiter Durable Object（限流）
+│   ├── auth.mjs             # JWT 签发/校验 + PBKDF2 密码哈希
+│   ├── user.mjs             # 用户注册/登录（D1 用户表存取）
+│   ├── upload.mjs           # 文件上传处理（D1 存储）
+│   ├── message-schema.mjs   # 消息类型 schema 定义与校验
+│   ├── sql.mjs              # D1 SQL 语句集中管理（改表名/字段只需改此处）
+│   └── utils.mjs            # 工具函数
 ├── public/
-│   ├── index.html          # 聊天界面（Vue.js，含登录/注册）
-│   ├── style.css           # 样式
-│   ├── webrtc-manager.js   # WebRTC 视频通话管理
-│   ├── webrtc-data-manager.js  # WebRTC 文件传输管理
-│   ├── webrtc-detect.js    # WebRTC 能力检测
-│   └── check.html          # 设备检测页面
-├── migrations/             # D1 数据库迁移
+│   ├── index.html           # 聊天界面（Vue.js，含登录/注册）
+│   ├── style.css            # 样式
+│   ├── webrtc-manager.js    # WebRTC 视频通话管理
+│   ├── webrtc-data-manager.js   # WebRTC 文件传输管理
+│   ├── webrtc-detect.js     # WebRTC 能力检测
+│   ├── check.html           # 设备检测页面
+│   ├── pubkeys/             # SSH 公钥文件（id_ed25519.pub.txt、id_rsa.pub.txt）
+│   └── _headers             # 静态资源缓存头（HTML 不缓存，JS/CSS 缓存 60s）
+├── migrations/              # D1 数据库迁移
 │   ├── 0001_create_chat_archive.sql   # 聊天归档表
 │   ├── 0002_create_chat_upload.sql    # 上传文件表
 │   ├── 0003_create_user_role.sql      # 用户与角色表
 │   └── 0004_alter_chat_user_id.sql    # chat_user.id 改整数自增
-├── wrangler.jsonc          # Workers 部署配置
+├── wrangler.jsonc           # Workers 部署配置
 └── package.json
 ```
 
