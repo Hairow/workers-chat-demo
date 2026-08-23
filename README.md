@@ -160,7 +160,7 @@
 ## 快速开始
 
 ### 前置条件
-- [Node.js](https://nodejs.org/) 18+
+- [Node.js](https://nodejs.org/) 22+（wrangler 4.x 要求 Node >= 22）
 - [Wrangler](https://developers.cloudflare.com/workers/wrangler/) CLI（`npm install -g wrangler`）
 - Cloudflare 账号，已启用 Durable Objects 与 D1
 
