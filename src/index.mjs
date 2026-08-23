@@ -234,18 +234,6 @@ async function handleApiRequest(path, request, env) {
         let verifiedRequest = new Request(newUrl, request);
         verifiedRequest.headers.set("X-Verified-Name", payload.sub);
         return roomObject.fetch(newUrl, verifiedRequest);
-      } else if (path[2] === 'delete') {
-        // Only users with the 'admin' role may delete rooms.
-        // 仅拥有 admin 角色的用户可删除房间。
-        let roles = payload.roles || [];
-        if (!roles.includes('admin')) {
-          return Response.json({ error: "Forbidden: admin role required" }, { status: 403 });
-        }
-        // Forward the request with the verified username in a header.
-        // 将请求转发给 DO，并附加已验证的用户名到头中。
-        let verifiedRequest = new Request(newUrl, request);
-        verifiedRequest.headers.set("X-Verified-Name", payload.sub);
-        return roomObject.fetch(newUrl, verifiedRequest);
       } else {
         return Response.json({ error: "Not found" }, { status: 404 });
       }

@@ -15,7 +15,6 @@
 - 注册 / 登录：用户名 + 密码，密码经 PBKDF2 哈希后存入 D1 `chat_user` 表
 - JWT 认证（基于 jose + Web Crypto API），24 小时有效期，加入房间需携带 token
 - 角色体系：默认 `user` 角色，预置 `admin` / `user` 两种角色（D1 `chat_role` 表）
-- 房间管理：仅 `admin` 角色可通过 `POST /api/room/<name>/delete` 删除房间（广播退出、关闭连接、清空数据）
 
 ### WebRTC 视频通话
 
@@ -217,7 +216,6 @@ wrangler secret put JWT_SECRET
 | `/api/register` | POST | 注册用户（`{ name, password }`，密码至少 6 位，PBKDF2 哈希入库） |
 | `/api/auth` | POST | 登录，校验用户名 + 密码后签发 JWT |
 | `/api/room/<name>/websocket?token=...` | GET | WebSocket 连接，加入聊天室（需 JWT） |
-| `/api/room/<name>/delete?token=...` | POST | 删除房间（需 `admin` 角色） |
 | `/api/room` | POST | 创建私密房间，返回 64 位随机 ID |
 | `/api/rooms` | GET | 获取活跃房间列表 |
 | `/api/upload` | POST | 上传文件（multipart，仅图片/音视频，最大 20MB，存入 D1） |

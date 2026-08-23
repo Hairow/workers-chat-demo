@@ -84,22 +84,6 @@ export class ChatRoom {
       let url = new URL(request.url);
 
       switch (url.pathname) {
-        case "/delete": {
-          // POST /api/room/<name>/delete — delete the room and all its data.
-          // POST /api/room/<name>/delete — 删除房间及其所有数据。
-          if (request.method === "POST") {
-            // Notify all connected users that the room is being deleted.
-            this.broadcast({ quit: "Room deleted by admin." });
-            // Close all WebSocket connections.
-            this.state.getWebSockets().forEach(ws => ws.close(1001, "Room deleted"));
-            this.sessions.clear();
-            // Delete all stored messages.
-            await this.storage.deleteAll();
-            return Response.json({ ok: true });
-          }
-          return Response.json({ error: "Method not allowed" }, { status: 405 });
-        }
-
         case "/websocket": {
           // The request is to `/api/room/<name>/websocket`. A client is trying to establish a new
           // WebSocket session.
