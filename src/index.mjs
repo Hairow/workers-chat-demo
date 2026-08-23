@@ -6,69 +6,6 @@
 // 模块简介
 // ===============================
 //
-// The first thing you might notice, if you are familiar with the Workers platform, is that this
-// Worker is written differently from others you may have seen. It even has a different file
-// extension. The `mjs` extension means this JavaScript is an ES Module, which, among other things,
-// means it has imports and exports. Unlike other Workers, this code doesn't use
-// `addEventListener("fetch", handler)` to register its main HTTP handler; instead, it _exports_
-// a handler, as we'll see below.
-// 如果你熟悉 Workers 平台，你可能会注意到这个 Worker 的写法和之前见过的不一样。它的文件扩展名也不同。
-// `.mjs` 扩展名表示这是一个 ES 模块，意味着它有 import 和 export。
-// 与其他 Worker 不同，这段代码没有使用 `addEventListener("fetch", handler)` 来注册 HTTP 处理器；
-// 而是导出了一个处理器函数。
-//
-// This is a new way of writing Workers that we expect to introduce more broadly in the future. We
-// like this syntax because it is *composable*: You can take two workers written this way and
-// merge them into one worker, by importing the two Workers' exported handlers yourself, and then
-// exporting a new handler that call into the other Workers as appropriate.
-// 这是一种新的 Worker 编写方式，我们预计将来会广泛推广。我们喜欢这种语法因为它是可组合的：
-// 你可以把两个以这种方式编写的 Worker 合并成一个，通过自己导入两个 Worker 的 handler，
-// 然后导出一个新的 handler 来调用它们。
-//
-// This new syntax is required when using Durable Objects, because your Durable Objects are
-// implemented by classes, and those classes need to be exported. The new syntax can be used for
-// writing regular Workers (without Durable Objects) too, but for now, you must be in the Durable
-// Objects beta to be able to use the new syntax, while we work out the quirks.
-// 使用 Durable Objects 时必须使用这种新语法，因为 Durable Objects 是以类的方式实现的，
-// 这些类需要被导出。新语法也可以用来编写普通的 Worker（不使用 Durable Objects），
-// 但目前你需要加入 Durable Objects beta 才能使用。
-//
-// To see an example configuration for uploading module-based Workers, check out the wrangler.toml
-// file or one of our Durable Object templates for Wrangler:
-// 要查看基于模块的 Worker 上传配置示例，请参考 wrangler.toml 文件或以下模板：
-//   * https://github.com/cloudflare/durable-objects-template
-//   * https://github.com/cloudflare/durable-objects-rollup-esm
-//   * https://github.com/cloudflare/durable-objects-webpack-commonjs
-
-// ===============================
-// Required Environment
-// 所需的运行环境
-// ===============================
-//
-// This worker, when deployed, must be configured with two environment bindings:
-// * rooms: A Durable Object namespace binding mapped to the ChatRoom class.
-// * limiters: A Durable Object namespace binding mapped to the RateLimiter class.
-// 这个 Worker 部署时必须配置两个环境绑定：
-// * rooms: 映射到 ChatRoom 类的 Durable Object 命名空间绑定。
-// * limiters: 映射到 RateLimiter 类的 Durable Object 命名空间绑定。
-//
-// Incidentally, in pre-modules Workers syntax, "bindings" (like KV bindings, secrets, etc.)
-// appeared in your script as global variables, but in the new modules syntax, this is no longer
-// the case. Instead, bindings are now delivered in an "environment object" when an event handler
-// (or Durable Object class constructor) is called. Look for the variable `env` below.
-// 顺便提一下，在旧版的 Worker 语法中，绑定（如 KV 绑定、密钥等）会以全局变量的形式出现，
-// 但在新模块语法中不再是这样的。现在绑定通过"环境对象"传递给事件处理器
-//（或 Durable Object 类的构造函数）。详见下面的 `env` 变量。
-//
-// We made this change, again, for composability: The global scope is global, but if you want to
-// call into existing code that has different environment requirements, then you need to be able
-// to pass the environment as a parameter instead.
-// 这个改动同样是为了可组合性：全局作用域是全局的，但如果你想调用已有代码，
-// 而这些代码有不同的环境要求，你就需要把环境作为参数传递。
-//
-// Once again, see the wrangler.toml file to understand how the environment is configured.
-// 再次说明，请查看 wrangler.toml 文件了解环境的配置方式。
-
 // =======================================================================================
 // The regular Worker part...
 // 常规 Worker 部分...
@@ -87,14 +24,7 @@ import { handleRegister, handleAuth } from "./user.mjs";
 export { ChatRoom } from "./chat-room.mjs";
 export { RateLimiter } from "./rate-limiter.mjs";
 
-// In modules-syntax workers, we use `export default` to export our script's main event handlers.
-// Here, we export one handler, `fetch`, for receiving HTTP requests. In pre-modules workers, the
-// fetch handler was registered using `addEventHandler("fetch", event => { ... })`; this is just
-// new syntax for essentially the same thing.
-// 在模块语法 Worker 中，我们使用 `export default` 来导出脚本的主事件处理器。
-// 这里导出了一个 `fetch` 处理器来接收 HTTP 请求。在旧版 Worker 中，
-// fetch 处理器是通过 `addEventHandler("fetch", event => { ... })` 注册的；这只是新语法。
-//
+
 // `fetch` isn't the only handler. If your worker runs on a Cron schedule, it will receive calls
 // to a handler named `scheduled`, which should be exported here in a similar way. We will be
 // adding other handlers for other types of events over time.
