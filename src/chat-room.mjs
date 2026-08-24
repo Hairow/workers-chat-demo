@@ -7,8 +7,8 @@ import { RateLimiterClient } from "./rate-limiter.mjs";
 import { SQL_ARCHIVE_INSERT } from "./sql.mjs";
 import { validateMessage } from "./message-schema.mjs";
 
-// 空房间归档检查周期：5 小时
-const ARCHIVE_INTERVAL_MS = 5 * 60 * 60 * 1000;
+// 空房间归档检查周期：6 小时
+const ARCHIVE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 // ChatRoom implements a Durable Object that coordinates an individual chat room. Participants
 // connect to the room using WebSockets, and the room broadcasts messages from each participant
@@ -369,7 +369,7 @@ export class ChatRoom {
     }
   }
 
-  // 每 5 小时被唤醒一次：空房间则归档并清空消息
+  // 每 6 小时被唤醒一次：空房间则归档并清空消息
   async alarm() {
     try {
       // 房间还有人（含连接未完全关闭的）→ 本次跳过，不归档
