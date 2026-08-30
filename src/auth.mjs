@@ -49,7 +49,7 @@ export async function signToken(env, username, room, extra = {}) {
  */
 export async function verifyToken(env, token) {
   const key = getKey(env);
-  const { payload } = await jose.jwtVerify(token, key);
+  const { payload } = await jose.jwtVerify(token, key, { algorithms: ["HS256"] });
   return payload;
 }
 
