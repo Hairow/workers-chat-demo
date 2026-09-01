@@ -16,13 +16,13 @@ const ARCHIVE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 // ChatRoom 实现了一个协调单个聊天室的 Durable Object。
 // 参与者通过 WebSocket 连接到房间，房间将每个参与者的消息广播给所有人。
 export class ChatRoom {
-  constructor(state, env) {
-    this.state = state
+  constructor(ctx, env) {
+    this.ctx = ctx
 
-    // `state.storage` provides access to our durable storage. It provides a simple KV
+    // `ctx.storage` provides access to our durable storage. It provides a simple KV
     // get()/put() interface.
-    // `state.storage` 提供对持久化存储的访问，带有简单的 KV get()/put() 接口。
-    this.storage = state.storage;
+    // `ctx.storage` 提供对持久化存储的访问，带有简单的 KV get()/put() 接口。
+    this.storage = ctx.storage;
 
     // `env` is our environment bindings (discussed earlier).
     // `env` 是我们的环境绑定（前面讨论过）。
@@ -35,7 +35,7 @@ export class ChatRoom {
     // 存储每个用户的 WebRTC 连接状态（可选）
     this.callStates = new Map(); // callId -> { caller, callee, state, ... }
 
-    this.state.getWebSockets().forEach((webSocket) => {
+    this.ctx.getWebSockets().forEach((webSocket) => {
       // The constructor may have been called when waking up from hibernation,
       // so get previously serialized metadata for any existing WebSockets.
       // 构造函数可能在从休眠中唤醒时被调用，因此需要获取之前序列化的 WebSocket 元数据。
@@ -135,7 +135,7 @@ export class ChatRoom {
     // Accept our end of the WebSocket. This tells the runtime that we'll be terminating the
     // WebSocket in JavaScript, not sending it elsewhere.
     // 接受 WebSocket 的服务端。这告诉运行时我们会在 JavaScript 中处理 WebSocket，而不是转发到其他地方。
-    this.state.acceptWebSocket(webSocket);
+    this.ctx.acceptWebSocket(webSocket);
 
     // 确保归档检查定时器已排程（每个 DO 实例首次激活时生效）
     await this.ensureArchiveAlarm();
@@ -373,7 +373,7 @@ export class ChatRoom {
   async alarm() {
     try {
       // 房间还有人（含连接未完全关闭的）→ 本次跳过，不归档
-      if (this.state.getWebSockets().length > 0 || this.sessions.size > 0) {
+      if (this.ctx.getWebSockets().length > 0 || this.sessions.size > 0) {
         return;
       }
 
@@ -398,7 +398,7 @@ export class ChatRoom {
 
   // 将消息批量写入 D1 归档表
   async archiveMessages(messages) {
-    const roomId = this.state.id.toString();
+    const roomId = this.ctx.id.toString();
     const batchId = new Date().toISOString();
     await this.env.d1
       .prepare(SQL_ARCHIVE_INSERT)
