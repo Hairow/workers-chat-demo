@@ -161,7 +161,7 @@
 
 ### 前置条件
 - [Node.js](https://nodejs.org/) 22+（wrangler 4.x 要求 Node >= 22）
-- [Wrangler](https://developers.cloudflare.com/workers/wrangler/) CLI（`npm install -g wrangler`）
+- [Wrangler](https://developers.cloudflare.com/workers/wrangler/) CLI（`pnpm install -g wrangler`）
 - Cloudflare 账号，已启用 Durable Objects 与 D1
 
 ### 创建 D1 数据库
@@ -175,17 +175,17 @@ wrangler d1 create my-db-name
 ### 本地开发
 
 ```bash
-npm install
+pnpm install
 wrangler d1 migrations apply my-db-name --local   # 应用 D1 迁移到本地
-npm run dev
+pnpm run dev
 ```
 
 ### 部署
 
 ```bash
 wrangler login
-wrangler d1 migrations apply my-db-name --remote  # 应用 D1 迁移到远程（npm run predeploy 已自动执行）
-npm run deploy
+wrangler d1 migrations apply my-db-name --remote  # 应用 D1 迁移到远程（pnpm run predeploy 已自动执行）
+pnpm run deploy
 ```
 
 部署后需配置 JWT 密钥：

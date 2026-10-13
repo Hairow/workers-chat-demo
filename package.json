@@ -10,6 +10,7 @@
     "deploy": "wrangler deploy",
     "tail": "wrangler tail"
   },
+  "packageManager": "pnpm@12.11.2",
   "dependencies": {
     "jose": "^6.2.8"
   },
